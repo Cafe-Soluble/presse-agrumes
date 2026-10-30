@@ -32,7 +32,7 @@ MSG
   fi
 fi
 
-if ! command -v ffmpeg >/dev/null 2>&1 && [ -z "${FFMPEG_BIN:-}" ]; then
+if ! command -v ffmpeg >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/ffmpeg" ] && [ -z "${FFMPEG_BIN:-}" ]; then
   echo "⚠ ffmpeg est introuvable dans le PATH. Installez-le ou définissez FFMPEG_BIN." >&2
 fi
 

@@ -105,5 +105,23 @@
 - `run.sh`, `scripts/dev.sh`, `deploy/presse-agrumes.service`,
   `deploy/presse-agrumes.env.example`.
 - Nettoyage des scripts UI ad hoc ; ajout du test Playwright réutilisable.
-- Reste à faire à la clôture de cette séance : commit(s) git, vérification
-  finale `pytest` + `npm run build` + `test:e2e`, éventuel push `origin`.
+
+## 2026-10-30 — Clôture, vérifications et commits
+
+- Vérifications finales :
+  - `pytest` : **22 tests passés** (scan, préflight, compression, permissions,
+    test qualité, auth Basic, AV1, dossiers miroir/lecture seule).
+  - `npm run typecheck` et `npm run build` : OK, `frontend/dist` à jour.
+  - `npx playwright test` (headless) : **1 test passé**.
+  - `./run.sh --help` : OK ; l'avertissement ffmpeg est évité si le binaire
+    est dans `~/.local/bin` (build statique de test).
+- Commits locaux :
+  - `0bd8cf6` backend ;
+  - `eb6d02f` frontend React ;
+  - `385d7a3` tests ;
+  - `fc37973` documentation.
+- Le dossier `data/`, `MEDIAS/` et `frontend/node_modules/` sont ignorés ; le
+  build `frontend/dist` est versionné.
+- Reste : push `origin/main` et éventuelle validation sur le vrai NAS (droits
+  réels, chemins `/mnt`, encodeur matériel).
+
