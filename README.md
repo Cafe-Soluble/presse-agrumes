@@ -78,7 +78,7 @@ Le backend ne fait confiance à aucun chemin : chaque accès passe par `presse_a
 ### Installation
 
 ```bash
-git clone git@github.com:Cafe-Soluble/presse-agrumes.git
+git clone https://github.com/Cafe-Soluble/presse-agrumes.git
 cd presse-agrumes
 ./run.sh
 ```
