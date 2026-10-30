@@ -290,6 +290,15 @@ export interface MountRoot {
   name: string;
   readable: boolean;
   writable: boolean;
+  empty?: boolean;
+}
+
+export interface SetupState {
+  needed: boolean;
+  media_root: string;
+  media_root_exists: boolean;
+  roots: MountRoot[];
+  allowed_roots: string[];
 }
 
 export interface Hardware {

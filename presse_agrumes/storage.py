@@ -124,6 +124,28 @@ def load_test_meta(test_id: str) -> dict | None:
     return read_json(test_dir(test_id) / "meta.json")
 
 
+# ---------------------------------------------------------------------------
+# Réglages de l'interface (assistant de premier démarrage)
+# ---------------------------------------------------------------------------
+
+def settings_path() -> Path:
+    return config.DATA_DIR / "settings.json"
+
+
+def load_settings() -> dict:
+    data = read_json(settings_path(), {})
+    return data if isinstance(data, dict) else {}
+
+
+def save_settings(settings: dict) -> None:
+    with _lock:
+        atomic_write_json(settings_path(), settings)
+
+
+# ---------------------------------------------------------------------------
+# Matériel
+# ---------------------------------------------------------------------------
+
 def hardware_path() -> Path:
     return config.CACHE_DIR / "hardware.json"
 

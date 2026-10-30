@@ -278,3 +278,18 @@
   (README + `docs/DOCKER.md`, section « Nom court via Docker Hub »).
 - **Reste** : créer le compte Docker Hub `cafesoluble`, ajouter les deux secrets,
   puis pousser un tag (`v0.6.1` ou `v0.7.0`) pour publier les tags de version.
+
+## 2026-10-31 — v0.7.0 : assistant de premier démarrage
+
+- **Contexte** : un chantier non commité ajoutait `/api/setup` et
+  `setup-dialog.tsx` mais ne rendait pas le dialogue ; `tsc` et le smoke
+  Playwright échouaient.
+- **Complété** : rendu de `SetupDialog` dans `workspace-page`, `onComplete`
+  (mémorise le dossier + préremplit l'étape 1), « Plus tard » persistant en
+  `localStorage`, test e2e adapté.
+- **Backend** : `GET/POST /api/setup`, `data/settings.json`, racines autorisées
+  d'abord dans `common_roots`, refus des chemins hors périmètre.
+- **Docker** : `allowed_roots` par défaut élargi à `/media`, `/mnt`, `/srv`,
+  `/volume1`, `/volume2` ; documentation mise à jour.
+- **Tests** : 37 pytest, typecheck, build, Playwright OK.
+- **Release** : v0.7.0, image multi-arch GHCR (`0.7.0`, `0.7`, `latest`).

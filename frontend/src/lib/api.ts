@@ -45,6 +45,12 @@ export const api = {
   hardware: (refresh = false) =>
     request<Hardware>(`/api/hardware${refresh ? "?refresh=true" : ""}`),
   mounts: () => request<{ roots: MountRoot[]; home: string }>("/api/mounts"),
+  setup: () => request<import("./types").SetupState>("/api/setup"),
+  saveSetup: (mediaRoot: string) =>
+    request<{ configured: boolean; media_root: string; writable: boolean }>("/api/setup", {
+      method: "POST",
+      body: JSON.stringify({ media_root: mediaRoot }),
+    }),
   browse: (path: string) =>
     request<BrowseData>(`/api/browse?path=${encodeURIComponent(path)}`),
   startScan: (root: string, options: ScanOptions) =>

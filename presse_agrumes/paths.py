@@ -181,9 +181,19 @@ def _breadcrumbs(path: Path) -> list[dict]:
     return list(reversed(crumbs))
 
 
+def _has_entries(path: Path) -> bool:
+    try:
+        with os.scandir(path) as iterator:
+            return next(iterator, None) is not None
+    except OSError:
+        return False
+
+
 def common_roots() -> list[dict]:
     """Racines pratiques proposées dans l'interface (montages NAS, home...)."""
-    candidates: list[Path] = [Path.home()]
+    # Les racines autorisées d'abord : c'est le périmètre réel de l'application.
+    candidates: list[Path] = [Path(root) for root in config.ALLOWED_ROOTS]
+    candidates.append(Path.home())
     for name in ("/mnt", "/media", "/srv", "/volume1", "/volume2", "/data", "/"):
         candidates.append(Path(name))
     # Montages détectés dans /proc/mounts (utile sur OMV/Unraid/Synology).
@@ -216,6 +226,7 @@ def common_roots() -> list[dict]:
                     "name": resolved.name or key,
                     "readable": is_readable(resolved),
                     "writable": is_writable_dir(resolved),
+                    "empty": not _has_entries(resolved),
                 }
             )
         except OSError:

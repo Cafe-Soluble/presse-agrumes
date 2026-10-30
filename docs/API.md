@@ -24,6 +24,8 @@ curl -u agrumes:motdepasse http://127.0.0.1:8080/api/health
 | GET | `/api/health` | Statut, version, chemins ffmpeg/ffprobe, auth, fuseau serveur. |
 | GET | `/api/config` | Presets qualité, défauts, racines autorisées, notes, fuseau. |
 | GET | `/api/mounts` | Racines pratiques (home, `/mnt`, `/media`, montages). |
+| GET | `/api/setup` | État de l'assistant : `needed`, dossier média mémorisé, racines autorisées. |
+| POST | `/api/setup` | Enregistre le dossier média choisi (`{"media_root": "/media/Films"}`) dans `data/settings.json`. |
 
 ## Fichiers
 

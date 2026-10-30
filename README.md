@@ -158,7 +158,7 @@ docker run -d --name presse-agrumes \
   -p 8080:8080 \
   -v /mnt/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
 
 # Récupérer le mot de passe généré au premier démarrage
 docker logs presse-agrumes | grep -A6 "première configuration"
@@ -168,7 +168,10 @@ Puis ouvrez `http://<ip-du-nas>:8080` avec l'utilisateur `agrumes` et le mot de
 passe affiché.
 
 - La configuration est créée dans le volume `/data` (`config.toml`), avec
-  `data_dir = "/data"` et `allowed_roots = ["/media"]`.
+  `data_dir = "/data"` et `allowed_roots` couvrant les montages courants
+  (`/media`, `/mnt`, `/srv`, `/volume1`, `/volume2`). Au premier lancement,
+  l'assistant propose de choisir le dossier média dans l'interface (ou
+  « Plus tard »).
 - Pour modifier le mot de passe ou ajouter des dossiers, éditez
   `/data/config.toml` sur l'hôte puis redémarrez. Avec un volume nommé, utilisez
   un montage répertoire (recommandé sur NAS) :
@@ -482,7 +485,9 @@ Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
 planification, bannière active, erreurs enrichies), `v0.3.0` (config.toml,
 suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
 fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
-lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une commande, configuration auto-générée).
+lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une
+commande, configuration auto-générée), `v0.7.0` (assistant de premier
+démarrage, racines Docker élargies).
 
 ## Dépannage
 

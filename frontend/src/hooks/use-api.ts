@@ -29,6 +29,14 @@ export function useMounts() {
   });
 }
 
+export function useSetup() {
+  return useQuery({
+    queryKey: ["setup"],
+    queryFn: api.setup,
+    staleTime: 60_000,
+  });
+}
+
 export function useScans() {
   return useQuery({
     queryKey: ["scans"],

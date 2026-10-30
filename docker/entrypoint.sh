@@ -5,7 +5,9 @@
 # Au premier démarrage, crée /data/config.toml dans le volume persistant avec :
 #   - un mot de passe aléatoire affiché dans les logs ;
 #   - data_dir = /data ;
-#   - allowed_roots = /media (monter les médias ici).
+#   - allowed_roots = montages courants (/media, /mnt, /srv, /volume1...) ;
+#     l'assistant de premier démarrage permet de choisir le dossier exact
+#     dans l'interface.
 #
 # Aux démarrages suivants, réutilise le fichier existant. Pour changer le mot
 # de passe ou les dossiers autorisés : éditez /data/config.toml sur l'hôte
@@ -39,7 +41,10 @@ port = 8080
 
 [paths]
 data_dir = "/data"
-allowed_roots = ["/media"]
+# Montages courants : l'assistant de premier démarrage permet de choisir le
+# dossier exact dans l'interface. Montez votre partage sur /media, /mnt,
+# /volume1... (voir la documentation).
+allowed_roots = ["/media", "/mnt", "/srv", "/volume1", "/volume2"]
 
 [auth]
 user = "agrumes"

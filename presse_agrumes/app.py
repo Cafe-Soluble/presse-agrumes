@@ -33,6 +33,7 @@ from .models import (
     DeleteScanItems,
     PreflightRequest,
     ScanRequest,
+    SetupRequest,
     TestRequest,
 )
 from .series import resolve_item_files
@@ -209,6 +210,38 @@ npm run build</pre>
                 "Les fichiers déjà en AV1 sont ignorés.",
                 "Le test qualité force un MP4 AAC pour la lecture navigateur.",
             ],
+        }
+
+    @app.get("/api/setup")
+    async def get_setup():
+        data = storage.load_settings()
+        media_root = str(data.get("media_root") or "")
+        return {
+            "needed": not bool(data.get("configured")),
+            "media_root": media_root,
+            "media_root_exists": bool(media_root) and Path(media_root).is_dir(),
+            "roots": paths.common_roots(),
+            "allowed_roots": [str(path) for path in config.ALLOWED_ROOTS],
+        }
+
+    @app.post("/api/setup")
+    async def save_setup(request: SetupRequest):
+        target = paths.guard_path(request.media_root, must_exist=True)
+        if not target.is_dir():
+            raise paths.PathError(f"{target} n'est pas un dossier.")
+        if not paths.is_readable(target):
+            raise paths.PathError(f"Dossier non lisible (permissions) : {target}")
+        storage.save_settings(
+            {
+                "configured": True,
+                "media_root": str(target),
+                "configured_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            }
+        )
+        return {
+            "configured": True,
+            "media_root": str(target),
+            "writable": paths.is_writable_dir(target),
         }
 
     @app.get("/api/mounts")

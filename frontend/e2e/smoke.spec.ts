@@ -8,6 +8,13 @@ test("la SPA se charge et navigue entre les vues", async ({ page }) => {
   });
 
   await page.goto("/");
+
+  // Installation neuve : l'assistant de premier démarrage s'ouvre. On le
+  // ferme pour vérifier l'interface principale.
+  const skipSetup = page.getByRole("button", { name: "Plus tard" });
+  await expect(skipSetup.or(page.getByRole("heading", { level: 1 }))).toBeVisible();
+  if (await skipSetup.isVisible()) await skipSetup.click();
+
   await expect(page.getByRole("heading", { level: 1 })).toContainText("vidéothèque");
   await expect(page.getByText("Dossier à analyser")).toBeVisible();
   await expect(page.getByText("Serveur prêt")).toBeVisible();

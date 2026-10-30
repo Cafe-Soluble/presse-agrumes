@@ -4,7 +4,7 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+ghcr.io/cafe-soluble/presse-agrumes:0.7.0
 ghcr.io/cafe-soluble/presse-agrumes:0.6
 ```
 
@@ -25,14 +25,19 @@ docker run -d --name presse-agrumes \
   -p 8080:8080 \
   -v /mnt/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
 ```
 
 Au premier démarrage, l'entrypoint crée automatiquement :
 
 - `/data/config.toml` avec un **mot de passe aléatoire** ;
 - `data_dir = "/data"` ;
-- `allowed_roots = ["/media"]`.
+- `allowed_roots` couvrant les montages courants : `/media`, `/mnt`, `/srv`,
+  `/volume1`, `/volume2`.
+
+Au premier lancement, un **assistant** propose de choisir le dossier média
+parmi ces racines (ou « Plus tard »). Le choix est mémorisé dans
+`/data/settings.json` et préremplit l'étape 1.
 
 Récupérez le mot de passe :
 
@@ -57,7 +62,7 @@ docker run -d --name presse-agrumes \
   -p 8080:8080 \
   -v /mnt/media:/media \
   -v /volume1/docker/presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
 ```
 
 Le fichier de configuration est alors
@@ -69,7 +74,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.6.0
+cafesoluble/presse-agrumes:0.7.0
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -191,9 +196,10 @@ Deux points de cohérence sont à surveiller :
    `"9000:8080"` pour exposer 9000 sur l'hôte). Si tu changes le port dans
    `config.toml`, change aussi le côté conteneur du mapping.
 2. **Chemins** : `allowed_roots` et `data_dir` sont des chemins **dans le
-   conteneur**. Le wizard d'entrypoint génère des chemins absolus :
-   `data_dir = "/data"` (volume `./data:/data`) et `allowed_roots = ["/media"]`
-   (volume média monté sur `/media`).
+   conteneur**. L'entrypoint génère des chemins absolus :
+   `data_dir = "/data"` (volume `./data:/data`) et `allowed_roots` couvrant
+   `/media`, `/mnt`, `/srv`, `/volume1`, `/volume2`. Montez le partage média
+   sur l'un de ces chemins, puis choisis le dossier exact dans l'assistant.
 
 Le mot de passe est donc uniquement dans `/data/config.toml` (volume), jamais
 dans Compose ni dans l'image finale. Un seul endroit à sauvegarder/protéger.
@@ -208,11 +214,13 @@ dans Compose ni dans l'image finale. Un seul endroit à sauvegarder/protéger.
 | `/dev/dri` (option) | `/dev/dri` | Accélération VAAPI. |
 
 Le fichier généré utilise `data_dir = "/data"` : il est monté sur `./data`.
-Il est créé automatiquement au premier démarrage, avec `allowed_roots = ["/media"]`.
+Il est créé automatiquement au premier démarrage, avec `allowed_roots`
+couvrant les montages courants (`/media`, `/mnt`, `/srv`, `/volume1`,
+`/volume2`).
 
 Le `config.toml` du dépôt (installation native) contient encore
 `allowed_roots = ["/"]` comme valeur de démonstration. En Docker, la
-configuration générée utilise déjà `["/media"]`. Si tu montes d'autres
+configuration générée est déjà restreinte à ces montages. Si tu montes d'autres
 partages, ajoute-les dans `/data/config.toml` :
 
 ```toml
@@ -281,7 +289,7 @@ docker compose up -d
 Pour une version stable, épinglez un tag précis plutôt que `latest` :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+image: ghcr.io/cafe-soluble/presse-agrumes:0.7.0
 ```
 
 Les données et la configuration sont sur des volumes : un `pull` ne les efface

@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.7.0] — 2026-10-31
+
+### Ajouté
+
+- **Assistant de premier démarrage** : au premier lancement, l'interface propose
+  de choisir le dossier média parmi les racines autorisées (ou « Plus tard »).
+  Le choix est mémorisé dans `data/settings.json` et préremplit l'étape 1.
+- Routes `GET /api/setup` et `POST /api/setup` (validation par `guard_path`,
+  refus des chemins hors `allowed_roots`).
+- L'explorateur de dossiers s'ouvre sur une racine autorisée non vide : en
+  Docker, `/` n'est plus proposé par erreur.
+
+### Modifié
+
+- **Racines Docker par défaut élargies** : `/media`, `/mnt`, `/srv`,
+  `/volume1`, `/volume2`, pour pouvoir monter le partage média sur l'un de ces
+  chemins puis le choisir dans l'assistant.
+- Workflow Docker : miroir **Docker Hub optionnel**
+  (`cafesoluble/presse-agrumes`), activé par les secrets
+  `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`.
+
+### Corrigé
+
+- Test e2e : fermeture de l'assistant sur une installation neuve ; « Plus
+  tard » reste mémorisé (localStorage) et ne réapparaît plus à chaque visite.
+
 ## [0.6.0] — 2026-10-30
 
 ### Modifié

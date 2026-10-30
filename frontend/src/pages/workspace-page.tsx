@@ -31,6 +31,7 @@ import {
   useMounts,
   useScan,
   useScans,
+  useSetup,
 } from "@/hooks/use-api";
 import { useDebouncedValue, useLocalStorage } from "@/hooks/use-utils";
 import { effectiveEncoder } from "@/lib/estimate";
@@ -45,6 +46,7 @@ import { ResultsPanel } from "@/components/results-panel";
 import { CompressionPanel } from "@/components/compression-panel";
 import { JobPanel } from "@/components/job-panel";
 import { TestDialog } from "@/components/test-dialog";
+import { SetupDialog } from "@/components/setup-dialog";
 import { BrowseDialog, type BrowseMode } from "@/components/browse-dialog";
 import { DEFAULT_SCHEDULE } from "@/components/schedule-editor";
 import {
@@ -111,6 +113,7 @@ export function WorkspacePage() {
   const mountsQuery = useMounts();
   const scansQuery = useScans();
   const activeJobsQuery = useActiveJobs();
+  const setupQuery = useSetup();
   const scanQuery = useScan(activeScanId);
   const scan = scanQuery.data;
 
@@ -135,6 +138,7 @@ export function WorkspacePage() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [jobDismissed, setJobDismissed] = useState(false);
+  const [setupDismissed, setSetupDismissed] = useLocalStorage("pa.setupDismissed", false);
 
   const scanTerminalRef = useRef("");
   const compressionTerminalRef = useRef("");
@@ -142,6 +146,21 @@ export function WorkspacePage() {
   const autoOpenedJobRef = useRef<string | null>(null);
 
   const selectedIds = useMemo(() => [...selection].sort(), [selection]);
+
+  // Assistant de premier démarrage : uniquement sur une installation neuve
+  // (pas de réglages enregistrés, aucun scan, aucun dossier déjà saisi).
+  const setupNeeded =
+    setupQuery.isSuccess &&
+    scansQuery.isSuccess &&
+    Boolean(setupQuery.data?.needed) &&
+    (scansQuery.data?.length ?? 0) === 0 &&
+    !root &&
+    !setupDismissed;
+
+  useEffect(() => {
+    const saved = setupQuery.data?.media_root;
+    if (saved && !root) setRoot(saved);
+  }, [setupQuery.data?.media_root, root, setRoot]);
 
   const preflightPayload = useMemo<CompressionPayload | null>(() => {
     if (!scan || selectedIds.length === 0) return null;
@@ -690,6 +709,18 @@ export function WorkspacePage() {
           </Card>
         )}
       </div>
+
+      <SetupDialog
+        open={setupNeeded}
+        state={setupQuery.data}
+        initialPath={root}
+        onComplete={(path) => {
+          setRoot(path);
+          setSetupDismissed(true);
+          void queryClient.invalidateQueries({ queryKey: ["setup"] });
+        }}
+        onSkip={() => setSetupDismissed(true)}
+      />
 
       <TestDialog
         open={Boolean(testItem)}

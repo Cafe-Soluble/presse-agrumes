@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUp, ChevronRight, Folder, FolderTree, Link2, Lock, Tv } from "lucide-react";
 import { api } from "@/lib/api";
 import type { BrowseEntry } from "@/lib/types";
+import { useMounts } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,15 +44,23 @@ export function BrowseDialog({
   onSelect,
   onMarkSeries,
 }: BrowseDialogProps) {
-  const [path, setPath] = useState(initialPath || "/");
-  const [input, setInput] = useState(initialPath || "/");
+  const mountsQuery = useMounts();
+  // Sans chemin initial, on ouvre sur une racine réellement autorisée (en
+  // Docker, « / » est hors périmètre et renverrait une erreur).
+  const defaultPath = useMemo(() => {
+    const roots = mountsQuery.data?.roots ?? [];
+    return roots.find((root) => !root.empty)?.path ?? roots[0]?.path ?? "/";
+  }, [mountsQuery.data]);
+
+  const [path, setPath] = useState(initialPath || defaultPath);
+  const [input, setInput] = useState(initialPath || defaultPath);
 
   useEffect(() => {
     if (!open) return;
-    const start = initialPath || "/";
+    const start = initialPath || defaultPath;
     setPath(start);
     setInput(start);
-  }, [open, initialPath]);
+  }, [open, initialPath, defaultPath]);
 
   const browse = useQuery({
     queryKey: ["browse", path],

@@ -493,3 +493,31 @@ def test_delete_scan_rejects_unknown_path(client, media_root: Path):
     assert result["deleted_count"] == 0
     assert result["warnings"]
     assert target.exists()
+
+
+def test_setup_wizard_saves_media_root(client, media_root: Path, tmp_path: Path):
+    # Le fichier de réglages peut avoir été créé par un test précédent.
+    (config.DATA_DIR / "settings.json").unlink(missing_ok=True)
+
+    state = client.get("/api/setup")
+    assert state.status_code == 200
+    assert state.json()["needed"] is True
+    assert state.json()["media_root"] == ""
+
+    # Chemin inexistant ou hors des racines autorisées : refusé.
+    missing = client.post("/api/setup", json={"media_root": str(tmp_path / "absent")})
+    assert missing.status_code == 400
+    outside = client.post("/api/setup", json={"media_root": "/etc"})
+    assert outside.status_code == 400
+
+    saved = client.post("/api/setup", json={"media_root": str(media_root)})
+    assert saved.status_code == 200, saved.text
+    payload = saved.json()
+    assert payload["configured"] is True
+    assert payload["media_root"] == str(media_root.resolve())
+
+    state = client.get("/api/setup").json()
+    assert state["needed"] is False
+    assert state["media_root"] == str(media_root.resolve())
+    assert state["media_root_exists"] is True
+    assert any(root["path"] == str(config.ALLOWED_ROOTS[0].resolve()) for root in state["roots"])

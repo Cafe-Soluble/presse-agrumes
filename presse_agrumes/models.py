@@ -135,6 +135,12 @@ class PreflightRequest(BaseModel):
     concurrency: int = Field(default=1, ge=1, le=4)
 
 
+class SetupRequest(BaseModel):
+    """Dossier média choisi dans l'assistant de premier démarrage."""
+
+    media_root: str = Field(min_length=1, max_length=4096)
+
+
 class BenchmarkRequest(BaseModel):
     encoder: Literal["libsvtav1", "libaom-av1", "av1_vaapi"] = "libsvtav1"
     preset: int = Field(default=8, ge=0, le=13)
