@@ -9,7 +9,7 @@ Presse-Agrumes suit **SemVer** :
 - `PATCH` : correction compatible.
 
 Les tags git sont annotés et préfixés par `v` : `v0.1.0`, `v0.2.0`, `v0.2.1`…
-Les pré-releases peuvent utiliser `v0.5.0-rc.1`.
+Les pré-releases peuvent utiliser `v0.7.0-rc.1`.
 
 ## Fichiers de version à synchroniser
 
@@ -84,3 +84,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.4.0` | 2026-10-30 | Configuration uniquement par `config.toml`, suppression des variables d'environnement, fichier versionné, systemd sans `Environment=`. |
 | `v0.4.1` | 2026-10-30 | Nettoyage du lancement (`run.sh`), plus aucune variable de shell pour la configuration. |
 | `v0.5.0` | 2026-10-30 | Image Docker multi-arch GHCR, docker-compose, CI, endpoint `/healthz`, documentation Docker. |
+| `v0.6.0` | 2026-10-30 | Installation Docker en une commande, config auto-générée dans `/data`, mot de passe aléatoire dans les logs, smoke test CI. |

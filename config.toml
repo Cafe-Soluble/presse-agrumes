@@ -21,8 +21,8 @@ port = 8080
 [paths]
 # Dossier des scans, jobs, tests et benchmarks.
 # Relatif au dossier contenant ce fichier, ou chemin absolu.
-# En Docker, c'est un chemin DANS le conteneur : montez un volume dessus
-# (le Compose monte ./data sur /app/data, et "./data" devient /app/data).
+# Pour Docker, le wizard génère un data_dir absolu (/data) monté sur un volume.
+# Pour l'installation native, "./data" pointe vers le dossier du projet.
 data_dir = "./data"
 
 # Dossiers que l'application a le droit de parcourir / modifier / supprimer.
@@ -59,8 +59,10 @@ disabled = false
 # (image, volumes, mapping de port, UID/GID, devices). Ce ne sont pas des
 # doublons : Compose ne connaît pas le mot de passe ni allowed_roots.
 #
-# Le fichier peut être monté dans le conteneur, par exemple :
-#   docker run ... -v /data/presse-agrumes/config.toml:/app/config.toml:ro ...
-# ou pointer ailleurs avec l'option de lancement :
-#   python -m presse_agrumes --config /config/presse-agrumes.toml
+# En Docker, ne montez pas ce fichier du dépôt : l'entrypoint génère
+# automatiquement /data/config.toml (volume /data) au premier démarrage, avec
+# un mot de passe aléatoire affiché dans les logs.
+#
+# Pour une installation native, ce fichier est utilisé directement ; il peut
+# aussi être monté dans le conteneur avec --config.
 # =============================================================================

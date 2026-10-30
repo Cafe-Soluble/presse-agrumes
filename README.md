@@ -148,36 +148,48 @@ python3 -m venv .venv
 
 C'est le canal recommandé pour un NAS. L'image est publiée sur
 **GitHub Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en
-`amd64` et `arm64`. **Pas besoin de git** pour l'utiliser : Docker télécharge
-l'image, et tu télécharges seulement les deux petits fichiers de configuration.
-
-#### Sans git (recommandé)
+`amd64` et `arm64`. **Pas besoin de git, de curl, ni de fichier Compose** :
+Docker télécharge l'image et l'application crée sa configuration au premier
+démarrage.
 
 ```bash
-mkdir -p ~/presse-agrumes && cd ~/presse-agrumes
+docker run -d --name presse-agrumes \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v /mnt/media:/media \
+  -v presse-agrumes:/data \
+  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
 
-# Télécharge le modèle de configuration et le Compose (version taguée).
-curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/config.toml
-curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/docker-compose.yml
-
-nano config.toml          # mot de passe, allowed_roots, port
-chmod 600 config.toml
-mkdir -p data && sudo chown -R 1000:1000 data
-
-docker compose up -d      # télécharge l'image GHCR et démarre
+# Récupérer le mot de passe généré au premier démarrage
+docker logs presse-agrumes | grep -A6 "première configuration"
 ```
 
-Le `docker-compose.yml` monte `config.toml` en lecture seule, `data/` et vos
-médias. Adaptez l'UID/GID (`user:`), le chemin `/mnt/media`, et éventuellement
-`/dev/dri` pour VAAPI. Les mises à jour se font avec
-`docker compose pull && docker compose up -d`.
+Puis ouvrez `http://<ip-du-nas>:8080` avec l'utilisateur `agrumes` et le mot de
+passe affiché.
 
-`git clone` n'est nécessaire que pour développer ou installer depuis les
-sources ; pour Docker, `docker pull` (ou `docker compose up`) suffit à
-télécharger l'image.
+- La configuration est créée dans le volume `/data` (`config.toml`), avec
+  `data_dir = "/data"` et `allowed_roots = ["/media"]`.
+- Pour modifier le mot de passe ou ajouter des dossiers, éditez
+  `/data/config.toml` sur l'hôte puis redémarrez. Avec un volume nommé, utilisez
+  un montage répertoire (recommandé sur NAS) :
+  ```bash
+  mkdir -p /volume1/docker/presse-agrumes
+  sudo chown -R 1000:1000 /volume1/docker/presse-agrumes
+  # puis remplacer -v presse-agrumes:/data par :
+  # -v /volume1/docker/presse-agrumes:/data
+  ```
+- Le mot de passe n'est affiché qu'à la première création ; il est aussi dans
+  `/data/config.toml`.
+- Pour VAAPI, ajoutez `--device /dev/dri` et les groupes adaptés.
+- Pour le fuseau horaire : `-v /etc/localtime:/etc/localtime:ro`.
 
-Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md) (Synology, Unraid, OMV,
-permissions, VAAPI, fuseau horaire, dépannage, autre méthode `docker run`).
+`docker-compose.yml` reste disponible pour ceux qui préfèrent Compose, mais il
+n'est plus nécessaire. Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md)
+(Synology, Unraid, OMV, permissions, VAAPI, fuseau horaire, dépannage).
+
+> Le nom court `docker pull cafe-soluble/presse-agrumes` nécessite un miroir
+> Docker Hub. L'image actuelle est sur GHCR ; un miroir Docker Hub peut être
+> ajouté avec un compte Docker Hub et un token dans GitHub Actions.
 
 ### Service systemd
 
@@ -467,7 +479,7 @@ Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
 planification, bannière active, erreurs enrichies), `v0.3.0` (config.toml,
 suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
 fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
-lancement), `v0.5.0` (Docker multi-arch GHCR, Compose, `/healthz`).
+lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une commande, configuration auto-générée).
 
 ## Dépannage
 

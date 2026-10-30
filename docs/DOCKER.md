@@ -4,8 +4,8 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.5.0
-ghcr.io/cafe-soluble/presse-agrumes:0.5
+ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+ghcr.io/cafe-soluble/presse-agrumes:0.6
 ```
 
 GHCR est le canal principal : intégration native avec GitHub Actions, pas de
@@ -14,75 +14,121 @@ pourra être ajouté plus tard pour la découvrabilité.
 
 Architectures : `linux/amd64` et `linux/arm64`.
 
-## Télécharger l'image
+## Installation en une commande
 
-**Docker est le téléchargeur.** Pas besoin de git sur le NAS :
-
-```bash
-docker pull ghcr.io/cafe-soluble/presse-agrumes:0.5.0
-```
-
-`docker compose up` effectue ce pull automatiquement. `git` n'est utile que
-pour développer ou installer depuis les sources. Pour Docker, il faut seulement
-deux fichiers : `config.toml` et `docker-compose.yml`.
-
-## Démarrage rapide sans git
-
-```bash
-mkdir -p ~/presse-agrumes
-cd ~/presse-agrumes
-
-# 1. Récupérez les deux fichiers (ou téléchargez-les depuis GitHub).
-curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/config.toml
-curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/docker-compose.yml
-
-# 2. Éditez config.toml : mot de passe, allowed_roots, port.
-nano config.toml
-chmod 600 config.toml
-
-# 3. Préparez le dossier de données (UID/GID du conteneur, 1000 par défaut).
-mkdir -p data
-sudo chown -R 1000:1000 data
-
-# 4. Adaptez les volumes média dans docker-compose.yml (/mnt/media),
-#    puis démarrez (l'image est tirée depuis GHCR).
-docker compose up -d
-docker compose logs -f
-```
-
-Puis ouvrez `http://<ip-du-nas>:8080` avec les identifiants de `config.toml`.
-
-> Le port interne vient de `[server] port` dans `config.toml`. Le `ports:` de
-> Compose doit mapper ce port. Le conteneur démarre avec `--strict-port` : si le
-> port est occupé dans le conteneur, il échoue proprement au lieu de basculer
-> silencieusement sur un autre port.
-
-### Variante `docker run` (sans Compose)
-
-Une fois `config.toml` créé et le dossier `data/` préparé :
+**Docker télécharge l'image.** Pas besoin de git, de curl, ni de `config.toml`
+préexistant :
 
 ```bash
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
-  --user 1000:1000 \
   -p 8080:8080 \
-  -v "$PWD/config.toml:/app/config.toml:ro" \
-  -v "$PWD/data:/app/data" \
-  -v /mnt/media:/mnt/media \
-  -v /etc/localtime:/etc/localtime:ro \
-  ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+  -v /mnt/media:/media \
+  -v presse-agrumes:/data \
+  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
 ```
 
-Sans montage de `config.toml`, l'image démarre avec son fichier par défaut
-(mot de passe `changez-moi`, `allowed_roots = ["/"]`) : ce n'est pas
-recommandé en production.
+Au premier démarrage, l'entrypoint crée automatiquement :
 
-### Synology / Unraid / OMV
+- `/data/config.toml` avec un **mot de passe aléatoire** ;
+- `data_dir = "/data"` ;
+- `allowed_roots = ["/media"]`.
+
+Récupérez le mot de passe :
+
+```bash
+docker logs presse-agrumes | grep -A6 "première configuration"
+```
+
+Puis ouvrez `http://<ip-du-nas>:8080`.
+
+> Le mot de passe n'est affiché qu'à la première création. Il reste lisible dans
+> le volume `/data` (`config.toml`). Pour le changer, éditez ce fichier puis
+> redémarrez le conteneur.
+
+Pour un montage hôte (plus facile à sauvegarder/éditer) :
+
+```bash
+mkdir -p /volume1/docker/presse-agrumes
+sudo chown -R 1000:1000 /volume1/docker/presse-agrumes
+
+docker run -d --name presse-agrumes \
+  --restart unless-stopped \
+  -p 8080:8080 \
+  -v /mnt/media:/media \
+  -v /volume1/docker/presse-agrumes:/data \
+  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+```
+
+Le fichier de configuration est alors
+`/volume1/docker/presse-agrumes/config.toml`.
+
+## Avec Docker Compose
+
+```bash
+mkdir -p data && sudo chown -R 1000:1000 data
+docker compose up -d
+docker compose logs | grep -A6 "première configuration"
+```
+
+Le Compose monte `./data:/data` et `/mnt/media:/media`. Adaptez l'UID/GID et le
+chemin média. Le fichier `./data/config.toml` est créé au premier démarrage.
+
+## UID/GID
+
+Le conteneur tourne avec l'utilisateur `app`, UID/GID **1000** par défaut. Si
+ton NAS utilise un autre UID (Synology 1026, Unraid 99…), ajoutez `--user` à
+`docker run` ou `user:` dans Compose, et donnez-lui le volume `/data` :
+
+```bash
+id -u
+id -g
+sudo chown -R 1026:100 /volume1/docker/presse-agrumes
+```
+
+Le serveur doit aussi pouvoir lire les médias et écrire dans les dossiers de
+sortie si tu utilises la suppression/déplacement.
+
+## Modifier la configuration
+
+Après le premier démarrage, éditez `config.toml` dans le volume `/data` :
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[paths]
+data_dir = "/data"
+allowed_roots = ["/media", "/media2"]
+
+[auth]
+user = "agrumes"
+password = "mon-nouveau-mot-de-passe"
+disabled = false
+```
+
+Puis :
+
+```bash
+docker restart presse-agrumes
+```
+
+Le port interne doit correspondre au mapping Docker (côté conteneur). Le
+conteneur démarre avec `--strict-port` : si le port est occupé, il échoue
+proprement.
+
+## Synology / Unraid / OMV
 
 Ces interfaces savent coller un `docker-compose.yml` ou créer un conteneur
-graphiquement. Il suffit alors de monter `config.toml`, `data/` et les médias,
-sans passer par git. Les chemins d'hôte et l'UID/GID diffèrent selon le NAS :
-voir les sections suivantes.
+graphiquement. Montez au minimum :
+
+- un volume persistant sur `/data` (configuration + données) ;
+- vos médias sur `/media` ;
+- éventuellement `/etc/localtime` en lecture seule et `/dev/dri`.
+
+Aucune configuration préalable n'est nécessaire : le mot de passe est généré et
+affiché dans les logs du conteneur.
 
 ## `config.toml` et `docker-compose.yml` : qui fait quoi ?
 
@@ -93,7 +139,7 @@ Ce ne sont pas des doublons. Ils agissent à deux niveaux différents :
 | Mot de passe / utilisateur | **oui** | non |
 | `allowed_roots` (chemins autorisés) | **oui** | non |
 | Port interne de l'application | **oui** | mapping `hôte:conteneur` |
-| `data_dir` | **oui** (chemin dans le conteneur) | volume `./data:/app/data` |
+| `data_dir` | **oui** (chemin dans le conteneur) | volume `./data:/data` |
 | Médias | chemins vus dans le conteneur | volumes hôte → conteneur |
 | UID/GID | non | **oui** (`user:`) |
 | VAAPI / `/dev/dri` | non | **oui** (`devices:`) |
@@ -113,35 +159,34 @@ Deux points de cohérence sont à surveiller :
    `"9000:8080"` pour exposer 9000 sur l'hôte). Si tu changes le port dans
    `config.toml`, change aussi le côté conteneur du mapping.
 2. **Chemins** : `allowed_roots` et `data_dir` sont des chemins **dans le
-   conteneur**. Les volumes Compose doivent exposer les médias à ces chemins.
-   Avec le fichier par défaut, `data_dir = "./data"` devient `/app/data`
-   (relatif à `/app/config.toml`), monté par `./data:/app/data`.
+   conteneur**. Le wizard d'entrypoint génère des chemins absolus :
+   `data_dir = "/data"` (volume `./data:/data`) et `allowed_roots = ["/media"]`
+   (volume média monté sur `/media`).
 
-C'est pour cette raison que le Compose monte le fichier de configuration en
-lecture seule : une seule source de vérité pour l'application, un seul endroit
-pour le mot de passe.
+Le mot de passe est donc uniquement dans `/data/config.toml` (volume), jamais
+dans Compose ni dans l'image finale. Un seul endroit à sauvegarder/protéger.
 
 ## Fonctionnement des volumes
 
 | Hôte | Conteneur | Rôle |
 | --- | --- | --- |
-| `./config.toml` | `/app/config.toml` (ro) | Configuration unique, mot de passe. |
-| `./data` | `/app/data` | Scans, jobs, tests, benchmarks. |
-| `/mnt/media` | `/mnt/media` | Médias à analyser/compresser. |
+| `./data` | `/data` | Configuration générée, scans, jobs, tests, benchmarks. |
+| `/mnt/media` | `/media` | Médias à analyser/compresser. |
 | `/etc/localtime` | `/etc/localtime` (ro) | Fuseau horaire pour la planification. |
 | `/dev/dri` (option) | `/dev/dri` | Accélération VAAPI. |
 
-Le `config.toml` par défaut utilise `data_dir = "./data"` : dans le conteneur,
-le chemin est résolu par rapport à `/app/config.toml`, donc `/app/data`, monté
-sur `./data`.
+Le fichier généré utilise `data_dir = "/data"` : il est monté sur `./data`.
+Il est créé automatiquement au premier démarrage, avec `allowed_roots = ["/media"]`.
 
-`allowed_roots` par défaut vaut `["/"]` dans le dépôt. Pour un NAS, restreignez
-à ce qui est monté, par exemple :
+Le `config.toml` du dépôt (installation native) contient encore
+`allowed_roots = ["/"]` comme valeur de démonstration. En Docker, la
+configuration générée utilise déjà `["/media"]`. Si tu montes d'autres
+partages, ajoute-les dans `/data/config.toml` :
 
 ```toml
 [paths]
-data_dir = "./data"
-allowed_roots = ["/mnt/media"]
+data_dir = "/data"
+allowed_roots = ["/media", "/media2"]
 ```
 
 ## UID/GID et permissions
@@ -204,7 +249,7 @@ docker compose up -d
 Pour une version stable, épinglez un tag précis plutôt que `latest` :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+image: ghcr.io/cafe-soluble/presse-agrumes:0.6.0
 ```
 
 Les données et la configuration sont sur des volumes : un `pull` ne les efface
@@ -215,9 +260,8 @@ pas. Sauvegardez malgré tout `config.toml` et `data/` avant une mise à jour.
 ```bash
 docker build -t presse-agrumes:local .
 docker run --rm -p 8080:8080 \
-  -v "$PWD/config.toml:/app/config.toml:ro" \
-  -v "$PWD/data:/app/data" \
-  -v /mnt/media:/mnt/media \
+  -v "$PWD/data:/data" \
+  -v /mnt/media:/media \
   -v /etc/localtime:/etc/localtime:ro \
   presse-agrumes:local
 ```
@@ -225,7 +269,7 @@ docker run --rm -p 8080:8080 \
 ## Healthcheck
 
 L'image appelle `GET /healthz` (accessible sans authentification, aucune donnée
-sensible). Le healthcheck lit le port réel dans `/app/config.toml`.
+sensible). Le healthcheck lit le port réel dans `/data/config.toml`.
 
 ```bash
 docker inspect --format '{{json .State.Health}}' presse-agrumes
@@ -244,15 +288,15 @@ L'UID/GID du conteneur ne correspond pas au propriétaire. Adaptez `user:` et
 docker compose logs presse-agrumes
 ```
 
-Causes fréquentes : `config.toml` absent/non lisible, mot de passe vide,
-`allowed_roots` incorrect, port occupé (`--strict-port`), données non
-inscriptibles.
+Causes fréquentes : volume `/data` non inscriptible (UID/GID), port occupé
+(`--strict-port`), `allowed_roots` incorrect, configuration invalide après
+édition.
 
 ### `config.toml` non lu
 
-Le fichier doit être monté sur `/app/config.toml` et lisible par l'UID du
-conteneur. Avec un montage read-only, c'est normal que l'application ne puisse
-pas le modifier : elle n'en a pas besoin.
+Le fichier généré est `/data/config.toml`. Il doit être lisible par l'UID du
+conteneur. Après le premier démarrage, il est modifiable sur l'hôte (volume
+`./data`) ou via `docker cp` avec un volume nommé.
 
 ### Le port change
 

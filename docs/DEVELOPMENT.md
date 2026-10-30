@@ -92,7 +92,16 @@ docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
 
 L'image est multi-arch (amd64/arm64) via le workflow
 `.github/workflows/docker.yml`, qui publie sur GHCR. Elle n'utilise aucune
-variable d'environnement : `config.toml` est monté sur `/app/config.toml`.
+variable d'environnement : l'entrypoint génère `/data/config.toml` dans le volume
+persistant au premier démarrage, avec un mot de passe aléatoire affiché dans les
+logs. Le volume `/data` contient aussi les scans/jobs.
+
+```bash
+docker run -d --name presse-agrumes -p 8080:8080 \
+  -v /mnt/media:/media -v presse-agrumes:/data \
+  ghcr.io/cafe-soluble/presse-agrumes:0.6.0
+docker logs presse-agrumes
+```
 
 ## Build de production
 

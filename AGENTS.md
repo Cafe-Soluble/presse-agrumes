@@ -98,16 +98,19 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 
 | Fichier | Rôle |
 | --- | --- |
-| `Dockerfile` | Multi-stage Node → Python, ffmpeg, tini, utilisateur non-root UID 1000, healthcheck `/healthz`. |
+| `Dockerfile` | Multi-stage Node → Python, ffmpeg, tini, entrypoint, utilisateur non-root UID 1000, healthcheck `/healthz`. |
+| `docker/entrypoint.sh` | Génère `/data/config.toml` (mot de passe aléatoire affiché) au premier démarrage, puis lance l'app. |
 | `.dockerignore` | Exclut données/médias/tests/docs du contexte de build. |
-| `docker-compose.yml` | Config ro, `data`, médias, localtime, VAAPI optionnel, UID/GID. |
+| `docker-compose.yml` | Volume `/data` (config générée + data), médias `/media`, localtime, VAAPI optionnel, UID/GID. |
 | `.github/workflows/docker.yml` | Tests + build/push multi-arch sur GHCR. |
 | `docs/DOCKER.md` | Guide GHCR, Synology/Unraid/OMV, permissions, VAAPI, dépannage. |
 
 L'image est publiée sur `ghcr.io/cafe-soluble/presse-agrumes`. Le package doit
 être rendu public dans GitHub → Packages après le premier push. L'image
-fonctionne **sans variable d'environnement** : `config.toml` est monté sur
-`/app/config.toml`.
+fonctionne **sans variable d'environnement** : au premier démarrage,
+`docker/entrypoint.sh` génère `/data/config.toml` dans le volume persistant,
+avec un mot de passe aléatoire affiché dans les logs. Le fichier `/app/config.toml`
+de l'image n'est qu'un fallback d'import pour `config.py`.
 
 ### Données `data/` (ignoré par git)
 
@@ -213,9 +216,11 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
     qu'il est dans `scan["files"]`, sous la racine du scan, non symlink, puis
     reconstruire le scan. Confirmation UI obligatoire.
 16. **Docker** : le conteneur doit rester configurable uniquement par
-    `/app/config.toml`. Ne pas ajouter de variables d'environnement pour les
-    réglages applicatifs. Le healthcheck utilise `/healthz`, qui doit rester
-    accessible sans auth et sans information sensible.
+    `/data/config.toml` (généré au premier démarrage). Ne pas ajouter de
+    variables d'environnement pour les réglages applicatifs. Le healthcheck
+    utilise `/healthz`, accessible sans auth et sans information sensible.
+    Le volume `/data` est obligatoire : ne jamais écrire la config dans la
+    couche du conteneur.
 17. **Multi-arch** : toute nouvelle dépendance système doit exister en amd64 et
     arm64 (ffmpeg, tini). Vérifier le buildx avant release.
 

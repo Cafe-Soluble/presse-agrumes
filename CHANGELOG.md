@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.0] — 2026-10-30
+
+### Modifié
+
+- **Installation Docker en une commande** : plus besoin de git, curl, Compose ni
+  fichier de configuration préexistant.
+  `docker run ... -v /mnt/media:/media -v presse-agrumes:/data <image>`.
+- **Configuration générée au premier démarrage** dans `/data/config.toml`
+  (volume persistant), avec mot de passe aléatoire affiché dans les logs,
+  `data_dir = "/data"` et `allowed_roots = ["/media"]`.
+- Entrypoint Docker dédié (`docker/entrypoint.sh`), healthcheck sur
+  `/data/config.toml`.
+- Smoke test CI : construction de l'image, démarrage, vérification de
+  `/healthz` et de la création de `/data/config.toml`.
+- Documentation Docker simplifiée (une commande + `docker logs`).
+
 ## [0.5.0] — 2026-10-30
 
 ### Ajouté

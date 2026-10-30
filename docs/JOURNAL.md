@@ -240,3 +240,25 @@
   Playwright OK. `/healthz` testé sans auth.
 - **Reste** : commit + tag `v0.5.0`, push ; déclencher la CI et rendre le
   package GHCR public ; valider `docker compose` sur un vrai NAS.
+
+## 2026-10-30 — v0.6.0 : installation Docker en une commande
+
+- **Problème utilisateur** : l'installation Docker demandait git/curl/config/
+  Compose. Objectif : une seule commande et un mot de passe affiché.
+- **Entrypoint** `docker/entrypoint.sh` : au premier démarrage, crée
+  `/data/config.toml` dans le volume persistant avec un mot de passe aléatoire,
+  `data_dir="/data"`, `allowed_roots=["/media"]` ; affiche le mot de passe dans
+  les logs. Aux démarrages suivants, réutilise le fichier.
+- **Dockerfile** : copie de l'entrypoint, volume `/data`, healthcheck sur
+  `/data/config.toml`, `--strict-port`.
+- **docker-compose.yml** : plus de montage de `config.toml` ; monte `./data:/data`
+  et `/mnt/media:/media`. La config est générée dans `./data/config.toml`.
+- **CI** : ajout d'un job smoke qui construit l'image, la lance avec un volume,
+  vérifie `/healthz` et la création de `/data/config.toml`.
+- **Docs** : README/DOCKER réécrits autour de la commande unique et de
+  `docker logs`. Le nom court `cafe-soluble/...` nécessite un miroir Docker Hub
+  (non configuré faute de compte/token) ; l'image actuelle est GHCR.
+- **Validation locale** : tests 36, build frontend. Le smoke Docker sera validé
+  par la CI (Docker absent sur la VM).
+- **Reste** : commit + tag `v0.6.0` + push, surveiller le job smoke, puis
+  éventuel miroir Docker Hub.

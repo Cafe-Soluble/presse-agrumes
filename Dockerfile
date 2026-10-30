@@ -8,12 +8,12 @@
 # Build local :
 #   docker build -t presse-agrumes:local .
 #   docker run --rm -p 8080:8080 \
-#     -v "$PWD/config.toml:/app/config.toml:ro" \
-#     -v "$PWD/data:/app/data" \
-#     -v /mnt/media:/mnt/media \
+#     -v /mnt/media:/media \
+#     -v presse-agrumes:/data \
 #     presse-agrumes:local
 #
-# La configuration est exclusivement lue dans /app/config.toml.
+# Au premier démarrage, /data/config.toml est créé automatiquement dans le
+# volume persistant avec un mot de passe aléatoire affiché dans les logs.
 # =============================================================================
 
 ARG NODE_VERSION=22
@@ -28,7 +28,7 @@ RUN npm run build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 
-ARG APP_VERSION=0.5.0
+ARG APP_VERSION=0.6.0
 LABEL org.opencontainers.image.title="Presse-Agrumes" \
       org.opencontainers.image.description="Analyse et compression AV1 de bibliothèques vidéo" \
       org.opencontainers.image.source="https://github.com/Cafe-Soluble/presse-agrumes" \
@@ -51,26 +51,27 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY presse_agrumes ./presse_agrumes
 COPY --from=frontend /build/frontend/dist ./frontend/dist
 COPY config.toml ./config.toml
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 # Utilisateur non-root. L'UID 1000 est le plus courant sur les NAS ; il peut
 # être surchargé dans docker-compose (`user: "1026:100"` par exemple).
 RUN groupadd --gid 1000 app \
     && useradd --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin app \
-    && mkdir -p /app/data \
-    && chown -R app:app /app \
-    && chmod 600 /app/config.toml
+    && mkdir -p /data \
+    && chown -R app:app /app /data \
+    && chmod 600 /app/config.toml \
+    && chmod 755 /usr/local/bin/entrypoint.sh
 
 USER app
 
-# Le port réel vient de [server] port dans config.toml (8080 par défaut).
+# Le port réel vient de [server] port dans /data/config.toml (8080 par défaut).
 EXPOSE 8080
-VOLUME ["/app/data"]
+VOLUME ["/data"]
 STOPSIGNAL SIGTERM
 
 # /healthz est volontairement accessible sans authentification.
-# Le healthcheck lit le port réel dans le fichier TOML monté.
+# Le healthcheck lit le port réel dans la configuration persistante.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import tomllib,urllib.request; c=tomllib.load(open('/app/config.toml','rb')); urllib.request.urlopen('http://127.0.0.1:%d/healthz' % int(c['server']['port']), timeout=3).read()"
+  CMD python3 -c "import tomllib,urllib.request; c=tomllib.load(open('/data/config.toml','rb')); urllib.request.urlopen('http://127.0.0.1:%d/healthz' % int(c['server']['port']), timeout=3).read()"
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python", "-u", "-m", "presse_agrumes", "--config", "/app/config.toml", "--strict-port"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
