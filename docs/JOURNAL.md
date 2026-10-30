@@ -213,3 +213,30 @@
 - **Validation** : pytest 36 passés, build Vite OK, Playwright OK, auth par
   `config.toml`, suppression directe, limites, Suivi et calibration ETA.
 - **Reste** : commit + tag `v0.4.0` + push (fait après cette entrée).
+
+## 2026-10-30 — v0.5.0 : distribution Docker / GHCR
+
+- **Décision de distribution** : GHCR comme canal principal (intégration GitHub,
+  pas de limite de pull Docker Hub, packages publics, multi-arch), Docker Hub
+  éventuellement en miroir plus tard. `.deb` prévu ensuite.
+- **Dockerfile multi-stage** : Node 22 compile le frontend, Python 3.13 slim
+  (Debian trixie) exécute le backend avec ffmpeg/tini. Utilisateur non-root UID
+  1000, volume `/app/data`, `config.toml` copié par défaut et monté en lecture
+  seule en production, `--strict-port`.
+- **Healthcheck** : endpoint `/healthz` sans auth, sans secret ; le healthcheck
+  Docker lit le port réel dans `/app/config.toml`.
+- **docker-compose.yml** : config ro, data, médias, localtime, VAAPI optionnel,
+  UID/GID adaptables.
+- **GitHub Actions** : job tests (pytest + typecheck/build) puis build/push
+  multi-arch `linux/amd64,linux/arm64` vers
+  `ghcr.io/cafe-soluble/presse-agrumes`, tags SemVer + latest.
+- **Documentation** : `docs/DOCKER.md` (Synology/Unraid/OMV, UID/GID, VAAPI,
+  timezone, mises à jour, dépannage), README et AGENTS mis à jour.
+- **Limite de l'environnement** : Docker n'est pas installé sur la VM de test,
+  donc l'image n'a pas pu être construite localement ; la CI est le premier
+  build réel. Vérifier le tag `python:3.13-slim-trixie` et la présence de
+  `libsvtav1`/`libaom-av1` dans ffmpeg Debian.
+- **Validation locale** : `pytest` 36 passés, typecheck/build Vite OK,
+  Playwright OK. `/healthz` testé sans auth.
+- **Reste** : commit + tag `v0.5.0`, push ; déclencher la CI et rendre le
+  package GHCR public ; valider `docker compose` sur un vrai NAS.

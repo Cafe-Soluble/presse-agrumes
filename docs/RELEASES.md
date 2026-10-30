@@ -20,6 +20,7 @@ Les pré-releases peuvent utiliser `v0.5.0-rc.1`.
 | `pyproject.toml` | `version` |
 | `frontend/package.json` | `version` |
 | `frontend/package-lock.json` | `version` (via `npm version`) |
+| `Dockerfile` | `ARG APP_VERSION` |
 | `CHANGELOG.md` | section `## [X.Y.Z]` |
 | tag git | `vX.Y.Z` |
 
@@ -82,3 +83,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.3.0` | 2026-10-30 | Fichier `config.toml`, suppression directe, limites 10/20/30/50/Tout, calibration ETA automatique. |
 | `v0.4.0` | 2026-10-30 | Configuration uniquement par `config.toml`, suppression des variables d'environnement, fichier versionné, systemd sans `Environment=`. |
 | `v0.4.1` | 2026-10-30 | Nettoyage du lancement (`run.sh`), plus aucune variable de shell pour la configuration. |
+| `v0.5.0` | 2026-10-30 | Image Docker multi-arch GHCR, docker-compose, CI, endpoint `/healthz`, documentation Docker. |

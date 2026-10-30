@@ -63,6 +63,7 @@ def test_optional_basic_auth(client, monkeypatch):
     monkeypatch.setattr(config, "AUTH_USER", "agrumes")
     monkeypatch.setattr(config, "AUTH_PASSWORD", "secret")
     assert client.get("/api/health").status_code == 401
+    assert client.get("/healthz").status_code == 200
     authorized = client.get("/api/health", auth=("agrumes", "secret"))
     assert authorized.status_code == 200
 

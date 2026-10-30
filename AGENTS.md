@@ -45,7 +45,11 @@ scripts/dev.sh
 cd frontend
 npm run typecheck
 npm run build
-npm run test:e2e        # Playwright, serveur auth désactivée
+npm run test:e2e        # Playwright, backend dédié port 8099
+
+# Docker (local)
+docker build -t presse-agrumes:local .
+docker compose up -d
 ```
 
 Le venv local contient `pytest`, `httpx`, `fastapi`, `uvicorn`. Sur la VM de
@@ -68,7 +72,7 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `models.py` | Schémas Pydantic des requêtes (dont `CompressionSchedule`). |
 | `storage.py` | Écriture JSON atomique (scans, jobs, tests, cache matériel). |
 | `config.py` | Chargement exclusif de `config.toml`, auth, chemins, binaires. |
-| `__main__.py` | CLI Uvicorn, scan de port, affichage URL/IP/mot de passe. |
+| `__main__.py` | CLI Uvicorn, `--config`, scan de port, affichage URL/IP, source du mot de passe. |
 
 ### Frontend `frontend/src/`
 
@@ -89,6 +93,21 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `lib/types.ts` | Types des objets backend. Garder synchronisé avec Pydantic. |
 | `lib/estimate.ts` | Miroir client de l'estimation ETA/benchmark. |
 | `hooks/use-api.ts` | Queries TanStack + `useJob` (SSE + polling). |
+
+### Containerisation
+
+| Fichier | Rôle |
+| --- | --- |
+| `Dockerfile` | Multi-stage Node → Python, ffmpeg, tini, utilisateur non-root UID 1000, healthcheck `/healthz`. |
+| `.dockerignore` | Exclut données/médias/tests/docs du contexte de build. |
+| `docker-compose.yml` | Config ro, `data`, médias, localtime, VAAPI optionnel, UID/GID. |
+| `.github/workflows/docker.yml` | Tests + build/push multi-arch sur GHCR. |
+| `docs/DOCKER.md` | Guide GHCR, Synology/Unraid/OMV, permissions, VAAPI, dépannage. |
+
+L'image est publiée sur `ghcr.io/cafe-soluble/presse-agrumes`. Le package doit
+être rendu public dans GitHub → Packages après le premier push. L'image
+fonctionne **sans variable d'environnement** : `config.toml` est monté sur
+`/app/config.toml`.
 
 ### Données `data/` (ignoré par git)
 
@@ -193,6 +212,12 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
 15. **Suppression directe** : ne jamais accepter un chemin arbitraire ; vérifier
     qu'il est dans `scan["files"]`, sous la racine du scan, non symlink, puis
     reconstruire le scan. Confirmation UI obligatoire.
+16. **Docker** : le conteneur doit rester configurable uniquement par
+    `/app/config.toml`. Ne pas ajouter de variables d'environnement pour les
+    réglages applicatifs. Le healthcheck utilise `/healthz`, qui doit rester
+    accessible sans auth et sans information sensible.
+17. **Multi-arch** : toute nouvelle dépendance système doit exister en amd64 et
+    arm64 (ffmpeg, tini). Vérifier le buildx avant release.
 
 ## Ajouter une fonctionnalité
 

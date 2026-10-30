@@ -1,0 +1,42 @@
+# Contexte de build Docker : on exclut tout ce qui est local, volumineux ou
+# inutile à l'image finale.
+.git
+.gitignore
+.github
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.coverage
+htmlcov
+
+# Données et médias locaux
+data
+MEDIAS
+*.log
+
+# Frontend : node_modules et build sont régénérés dans le stage Node.
+frontend/node_modules
+frontend/dist
+frontend/.vite
+frontend/test-results
+frontend/playwright-report
+frontend/blob-report
+frontend/e2e
+
+# Tests et documentation (non nécessaires dans l'image)
+tests
+docs
+deploy
+scripts
+analyze_videos.py
+config.example.toml
+docker-compose.yml
+docker-compose.build.yml
+README.md
+AGENTS.md
+CHANGELOG.md
+LICENSE
+
+# Config locale : elle est copiée explicitement par le Dockerfile.
+# On garde config.toml dans le contexte (COPY config.toml).

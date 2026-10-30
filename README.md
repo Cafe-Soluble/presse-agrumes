@@ -15,6 +15,7 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 - [Stack technique](#stack-technique)
 - [Démarrage rapide](#démarrage-rapide)
 - [Installation sur un NAS](#installation-sur-un-nas)
+- [Docker (GHCR)](#docker-ghcr)
 - [Configuration](#configuration)
 - [Guide d'utilisation](#guide-dutilisation)
 - [Sécurité et permissions](#sécurité-et-permissions)
@@ -142,6 +143,29 @@ python3 -m venv .venv
 # (facultatif si frontend/dist est présent)
 (cd frontend && npm install && npm run build)
 ```
+
+### Docker (GHCR)
+
+C'est le canal recommandé pour un NAS. L'image est publiée sur
+**GitHub Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en
+`amd64` et `arm64`.
+
+```bash
+git clone https://github.com/Cafe-Soluble/presse-agrumes.git
+cd presse-agrumes
+nano config.toml          # mot de passe, allowed_roots, port
+chmod 600 config.toml
+mkdir -p data && sudo chown -R 1000:1000 data
+docker compose up -d
+```
+
+Le `docker-compose.yml` monte `config.toml` en lecture seule, `data/` et vos
+médias. Adaptez l'UID/GID (`user:`), le chemin `/mnt/media`, et éventuellement
+`/dev/dri` pour VAAPI. Les mises à jour se font avec
+`docker compose pull && docker compose up -d`.
+
+Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md) (Synology, Unraid, OMV,
+permissions, VAAPI, fuseau horaire, dépannage).
 
 ### Service systemd
 
@@ -420,6 +444,7 @@ Les versions sont synchronisées entre :
 - `presse_agrumes/config.py` (`VERSION`) ;
 - `pyproject.toml` ;
 - `frontend/package.json` (+ lock) ;
+- `Dockerfile` (`ARG APP_VERSION`) ;
 - `CHANGELOG.md` ;
 - le tag git `vX.Y.Z`.
 
@@ -430,7 +455,7 @@ Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
 planification, bannière active, erreurs enrichies), `v0.3.0` (config.toml,
 suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
 fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
-lancement).
+lancement), `v0.5.0` (Docker multi-arch GHCR, Compose, `/healthz`).
 
 ## Dépannage
 
@@ -516,13 +541,13 @@ ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default
 
 ## Feuille de route
 
-- Pause/reprise d'un job de compression, reprise après redémarrage.
+- Paquet `.deb` Debian/Ubuntu et dépôt APT signé.
+- Publication automatique des assets de release (`.deb`, checksums).
 - Notifications (webhook, Apprise, e-mail) en fin de job.
 - Profils de compression par bibliothèque.
 - Support des encodeurs matériels NVENC/QSV/AMF selon les builds ffmpeg.
 - Comparateur de captures avant/après avec slider.
 - Import de listes de lecture, détection de doublons.
-- Dockerfile multi-arch et paquets de release.
 
 ## Licence
 

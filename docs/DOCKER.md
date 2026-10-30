@@ -1,0 +1,200 @@
+# Docker
+
+L'image est publiée sur **GitHub Container Registry (GHCR)** :
+
+```text
+ghcr.io/cafe-soluble/presse-agrumes:latest
+ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+ghcr.io/cafe-soluble/presse-agrumes:0.5
+```
+
+GHCR est le canal principal : intégration native avec GitHub Actions, pas de
+limite de pull Docker Hub, image publique liée au dépôt. Un miroir Docker Hub
+pourra être ajouté plus tard pour la découvrabilité.
+
+Architectures : `linux/amd64` et `linux/arm64`.
+
+## Démarrage rapide
+
+```bash
+git clone https://github.com/Cafe-Soluble/presse-agrumes.git
+cd presse-agrumes
+
+# 1. Éditez config.toml : mot de passe, allowed_roots, port.
+chmod 600 config.toml
+
+# 2. Préparez le dossier de données avec l'UID/GID du conteneur (1000 par défaut).
+mkdir -p data
+sudo chown -R 1000:1000 data
+
+# 3. Adaptez les volumes média dans docker-compose.yml (/mnt/media).
+docker compose up -d
+docker compose logs -f
+```
+
+Puis ouvrez `http://<ip-du-nas>:8080` avec les identifiants de `config.toml`.
+
+> Le port interne vient de `[server] port` dans `config.toml`. Le `ports:` de
+> Compose doit mapper ce port. Le conteneur démarre avec `--strict-port` : si le
+> port est occupé dans le conteneur, il échoue proprement au lieu de basculer
+> silencieusement sur un autre port.
+
+## Fonctionnement des volumes
+
+| Hôte | Conteneur | Rôle |
+| --- | --- | --- |
+| `./config.toml` | `/app/config.toml` (ro) | Configuration unique, mot de passe. |
+| `./data` | `/app/data` | Scans, jobs, tests, benchmarks. |
+| `/mnt/media` | `/mnt/media` | Médias à analyser/compresser. |
+| `/etc/localtime` | `/etc/localtime` (ro) | Fuseau horaire pour la planification. |
+| `/dev/dri` (option) | `/dev/dri` | Accélération VAAPI. |
+
+Le `config.toml` par défaut utilise `data_dir = "./data"` : dans le conteneur,
+le chemin est résolu par rapport à `/app/config.toml`, donc `/app/data`, monté
+sur `./data`.
+
+`allowed_roots` par défaut vaut `["/"]` dans le dépôt. Pour un NAS, restreignez
+à ce qui est monté, par exemple :
+
+```toml
+[paths]
+data_dir = "./data"
+allowed_roots = ["/mnt/media"]
+```
+
+## UID/GID et permissions
+
+Le conteneur tourne avec l'utilisateur `app`, UID/GID **1000** par défaut. C'est
+le cas le plus courant, mais pas universel (Synology utilise souvent 1026,
+certains Unraid 99).
+
+```bash
+id -u          # UID de votre utilisateur média
+id -g          # GID
+```
+
+Puis dans `docker-compose.yml` :
+
+```yaml
+user: "1026:100"   # exemple Synology
+```
+
+Le dossier `./data` doit appartenir à cet UID/GID. Les médias doivent être
+**lisibles**, et les dossiers de sortie/origineux **inscriptibles** si vous
+utilisez la suppression, le déplacement ou une sortie dans le même dossier.
+
+```bash
+sudo chown -R 1026:100 data
+```
+
+## VAAPI / GPU
+
+Si `/dev/dri/renderD128` existe sur le NAS :
+
+```yaml
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+```
+
+Vérifiez les groupes de votre utilisateur média (`groups`, ou les GID dans
+`/etc/group`). Sans VAAPI, l'application utilise SVT-AV1 en CPU.
+
+## Fuseau horaire
+
+La planification utilise l'heure locale du serveur. Dans Docker, le montage
+suivant évite un décalage UTC :
+
+```yaml
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+```
+
+## Mises à jour
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Pour une version stable, épinglez un tag précis plutôt que `latest` :
+
+```yaml
+image: ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+```
+
+Les données et la configuration sont sur des volumes : un `pull` ne les efface
+pas. Sauvegardez malgré tout `config.toml` et `data/` avant une mise à jour.
+
+## Construction locale
+
+```bash
+docker build -t presse-agrumes:local .
+docker run --rm -p 8080:8080 \
+  -v "$PWD/config.toml:/app/config.toml:ro" \
+  -v "$PWD/data:/app/data" \
+  -v /mnt/media:/mnt/media \
+  -v /etc/localtime:/etc/localtime:ro \
+  presse-agrumes:local
+```
+
+## Healthcheck
+
+L'image appelle `GET /healthz` (accessible sans authentification, aucune donnée
+sensible). Le healthcheck lit le port réel dans `/app/config.toml`.
+
+```bash
+docker inspect --format '{{json .State.Health}}' presse-agrumes
+```
+
+## Dépannage
+
+### « Permission denied » sur `data/` ou les médias
+
+L'UID/GID du conteneur ne correspond pas au propriétaire. Adaptez `user:` et
+`chown`, ou vérifiez les ACL du partage.
+
+### Le conteneur redémarre en boucle
+
+```bash
+docker compose logs presse-agrumes
+```
+
+Causes fréquentes : `config.toml` absent/non lisible, mot de passe vide,
+`allowed_roots` incorrect, port occupé (`--strict-port`), données non
+inscriptibles.
+
+### `config.toml` non lu
+
+Le fichier doit être monté sur `/app/config.toml` et lisible par l'UID du
+conteneur. Avec un montage read-only, c'est normal que l'application ne puisse
+pas le modifier : elle n'en a pas besoin.
+
+### Le port change
+
+Le port interne est celui de `config.toml`. Mettez à jour `ports:` en
+conséquence, ou gardez 8080.
+
+### ARM64 et ffmpeg
+
+L'image est construite pour `arm64`. Si le ffmpeg Debian de l'image n'a pas
+SVT-AV1, l'application utilise libaom (plus lent). Vérifiez :
+
+```bash
+docker compose exec presse-agrumes ffmpeg -hide_banner -encoders | grep -E 'libsvtav1|libaom-av1'
+```
+
+## Publier l'image
+
+Le workflow `.github/workflows/docker.yml` construit et pousse l'image sur tag
+`v*` (et sur `main`) avec les plateformes amd64/arm64. Après le premier push,
+rendez le package **public** dans GitHub → Packages → Presse-Agrumes → Package
+settings → Change visibility.
+
+Tags générés :
+
+- `vX.Y.Z` → `X.Y.Z`, `X.Y`, `latest` (release stable) ;
+- branche `main` → `main` ;
+- commit → `sha-…`.

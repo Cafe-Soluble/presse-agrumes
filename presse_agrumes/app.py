@@ -51,6 +51,10 @@ QUALITY_PRESETS = [
 
 
 def _check_auth(request: Request) -> bool:
+    # Endpoint de santé minimal pour Docker/Kubernetes : aucune donnée
+    # sensible, il doit rester accessible sans identifiants.
+    if request.url.path == "/healthz":
+        return True
     if not config.AUTH_ENABLED:
         return True
     header = request.headers.get("authorization", "")
@@ -152,6 +156,11 @@ npm run build</pre>
         raise HTTPException(status_code=404, detail="Favicon absent.")
 
     # -- état / configuration --------------------------------------------
+    @app.get("/healthz", include_in_schema=False)
+    async def healthz():
+        """Sonde de santé minimale, sans authentification (Docker/K8s)."""
+        return {"status": "ok"}
+
     @app.get("/api/health")
     async def health():
         return {

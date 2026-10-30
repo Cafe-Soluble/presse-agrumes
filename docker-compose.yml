@@ -1,0 +1,39 @@
+# Docker Compose pour Presse-Agrumes.
+#
+# 1. Éditez config.toml (mot de passe, allowed_roots, port).
+# 2. Créez le dossier de données avec les bons droits :
+#      mkdir -p data
+#      sudo chown 1000:1000 data
+# 3. Adaptez les volumes média et l'UID/GID ci-dessous.
+# 4. docker compose up -d
+#
+# L'image est publiée sur GHCR. Pour utiliser une version précise :
+#   image: ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+# Pour construire localement :
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  presse-agrumes:
+    image: ghcr.io/cafe-soluble/presse-agrumes:latest
+    container_name: presse-agrumes
+    # UID/GID qui possède les médias et le dossier ./data.
+    # Sur Synology/Unraid, remplacez par votre UID utilisateur (id -u / id -g).
+    user: "1000:1000"
+    ports:
+      - "8080:8080"
+    volumes:
+      # Configuration unique, montée en lecture seule.
+      - ./config.toml:/app/config.toml:ro
+      # Scans, jobs, tests et benchmarks.
+      - ./data:/app/data
+      # Vos médias : adaptez le chemin hôte.
+      - /mnt/media:/mnt/media
+      # Fuseau horaire pour la planification.
+      - /etc/localtime:/etc/localtime:ro
+      # Accélération VAAPI (optionnel, si /dev/dri existe sur le NAS) :
+      # - /dev/dri:/dev/dri
+    # Pour VAAPI, ajoutez les groupes de la carte graphique :
+    # group_add:
+    #   - video
+    #   - render
+    restart: unless-stopped
+    # Le healthcheck est défini dans l'image (/healthz).

@@ -81,6 +81,19 @@ Ou en une commande :
 scripts/dev.sh
 ```
 
+## Docker
+
+La construction de l'image est décrite dans [`DOCKER.md`](DOCKER.md). En local :
+
+```bash
+docker build -t presse-agrumes:local .
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+L'image est multi-arch (amd64/arm64) via le workflow
+`.github/workflows/docker.yml`, qui publie sur GHCR. Elle n'utilise aucune
+variable d'environnement : `config.toml` est monté sur `/app/config.toml`.
+
 ## Build de production
 
 ```bash
@@ -257,4 +270,5 @@ CHANGELOG, committer, puis exécuter `scripts/release.sh X.Y.Z` et pousser le ta
 - [ ] Versions synchronisées (`__init__.py`, `config.py`, `pyproject.toml`,
       `frontend/package.json`, `CHANGELOG.md`).
 - [ ] `scripts/release.sh X.Y.Z` exécuté et tag poussé.
+- [ ] Image Docker construite par la CI sur le tag, package GHCR public.
 - [ ] `git status` ne contient ni `data/`, ni `MEDIAS/`, ni `node_modules/`.

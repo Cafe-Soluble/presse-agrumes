@@ -29,15 +29,18 @@ PY_VERSION=$(.venv/bin/python -c "from presse_agrumes import __version__; print(
 CFG_VERSION=$(.venv/bin/python -c "from presse_agrumes import config; print(config.VERSION)")
 PYPROJECT_VERSION=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 FRONTEND_VERSION=$(cd frontend && node -p "require('./package.json').version")
+DOCKER_VERSION=$(grep -m1 '^ARG APP_VERSION=' Dockerfile | cut -d= -f2)
 
 if [ "$VERSION" != "$PY_VERSION" ] || [ "$VERSION" != "$CFG_VERSION" ] \
-   || [ "$VERSION" != "$PYPROJECT_VERSION" ] || [ "$VERSION" != "$FRONTEND_VERSION" ]; then
+   || [ "$VERSION" != "$PYPROJECT_VERSION" ] || [ "$VERSION" != "$FRONTEND_VERSION" ] \
+   || [ "$VERSION" != "$DOCKER_VERSION" ]; then
   echo "Versions incohérentes :" >&2
   echo "  demandée   : $VERSION" >&2
   echo "  __version__: $PY_VERSION" >&2
   echo "  config     : $CFG_VERSION" >&2
   echo "  pyproject  : $PYPROJECT_VERSION" >&2
   echo "  frontend   : $FRONTEND_VERSION" >&2
+  echo "  Dockerfile : $DOCKER_VERSION" >&2
   exit 1
 fi
 

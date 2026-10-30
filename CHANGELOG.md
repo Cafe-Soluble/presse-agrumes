@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.0] — 2026-10-30
+
+### Ajouté
+
+- **Image Docker multi-arch** (`linux/amd64`, `linux/arm64`) avec ffmpeg,
+  tini, utilisateur non-root, healthcheck, volume `/app/data` et configuration
+  montée en lecture seule.
+- **`docker-compose.yml`** prêt à adapter (UID/GID, médias, VAAPI, fuseau
+  horaire).
+- **Workflow GitHub Actions** de tests + build/push de l'image sur
+  **GHCR** (`ghcr.io/cafe-soluble/presse-agrumes`) avec tags de version.
+- **Endpoint `/healthz`** non authentifié, sans données sensibles, pour les
+  healthchecks Docker/Kubernetes.
+- Documentation Docker complète : [`docs/DOCKER.md`](docs/DOCKER.md).
+
+### Notes
+
+- La configuration reste exclusivement `config.toml` ; aucun `Environment=`.
+- Le `.deb` et un dépôt APT restent prévus dans une prochaine version.
+
 ## [0.4.1] — 2026-10-30
 
 - Suppression du dernier recours à une variable de shell (`PYTHON`) dans
