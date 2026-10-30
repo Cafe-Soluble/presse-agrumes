@@ -122,6 +122,8 @@
   - `fc37973` documentation.
 - Le dossier `data/`, `MEDIAS/` et `frontend/node_modules/` sont ignorés ; le
   build `frontend/dist` est versionné.
-- Reste : push `origin/main` et éventuelle validation sur le vrai NAS (droits
-  réels, chemins `/mnt`, encodeur matériel).
+- Push `origin/main` effectué (`22eeec9..993515c`), puis validation du
+  démarrage autonome du backend par le `webServer` Playwright.
+- Reste : validation sur le vrai NAS (droits réels, chemins `/mnt`, encodeur
+  matériel).
 

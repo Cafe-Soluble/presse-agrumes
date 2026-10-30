@@ -12,7 +12,8 @@ export default defineConfig({
   webServer: process.env.PA_URL
     ? undefined
     : {
-        command: "cd .. && .venv/bin/python -m presse_agrumes --port 8080",
+        command: ".venv/bin/python -m presse_agrumes --port 8080",
+        cwd: "..",
         url: "http://127.0.0.1:8080/api/health",
         reuseExistingServer: true,
         timeout: 120_000,
