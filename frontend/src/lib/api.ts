@@ -56,6 +56,11 @@ export const api = {
   getScan: (scanId: string) => request<Scan>(`/api/scans/${scanId}`),
   deleteScan: (scanId: string) =>
     request<{ deleted: boolean }>(`/api/scans/${scanId}`, { method: "DELETE" }),
+  deleteScanItems: (scanId: string, itemIds: string[], paths: string[]) =>
+    request<import("./types").DeleteScanResult>(`/api/scans/${scanId}/delete`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids: itemIds, paths }),
+    }),
   preflight: (payload: CompressionPayload) =>
     request<PreflightResult>("/api/preflight", {
       method: "POST",

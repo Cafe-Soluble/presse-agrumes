@@ -282,6 +282,90 @@ class JobManager:
             self.jobs[job.id] = job
         return job
 
+    # -- suppression directe ---------------------------------------------
+    def delete_scan_items(
+        self, scan: dict, item_ids: list[str], raw_paths: list[str]
+    ) -> dict:
+        """Supprime des fichiers média d'un scan, sans compression.
+
+        Sécurité : seuls les chemins déjà présents dans le scan sont acceptés,
+        les liens symboliques sont refusés et le chemin résolu doit rester sous
+        la racine du scan.
+        """
+        root = Path(scan["root"]).resolve()
+        known = {entry["path"] for entry in scan.get("files", []) if entry.get("path")}
+        paths_to_delete, warnings = series.resolve_item_paths(scan, item_ids)
+        for raw in raw_paths:
+            raw_str = str(raw)
+            if raw_str in known:
+                if raw_str not in paths_to_delete:
+                    paths_to_delete.append(raw_str)
+            else:
+                warnings.append(
+                    {"path": raw_str, "warning": "chemin absent de ce scan"}
+                )
+
+        deleted: list[str] = []
+        errors: list[dict] = []
+        for path_str in paths_to_delete:
+            path = Path(path_str)
+            try:
+                if path.is_symlink():
+                    raise OSError("lien symbolique refusé pour la suppression")
+                resolved = path.resolve(strict=False)
+                resolved.relative_to(root)
+                if not path.exists():
+                    raise OSError("fichier introuvable")
+                if not path.is_file():
+                    raise OSError("ce n'est pas un fichier")
+                if not os.access(path.parent, os.W_OK | os.X_OK):
+                    raise OSError("dossier parent non inscriptible")
+                path.unlink()
+                deleted.append(path_str)
+            except (OSError, ValueError) as exc:
+                errors.append({"path": path_str, "error": str(exc)})
+
+        summary = scan.get("summary", {})
+        if deleted:
+            deleted_set = set(deleted)
+            remaining = [
+                entry
+                for entry in scan.get("files", [])
+                if entry.get("path") not in deleted_set
+            ]
+            grouped = series.build_items(
+                remaining, root, scan.get("series_roots", [])
+            )
+            scan["files"] = remaining
+            scan["items"] = grouped["items"]
+            scan["packs"] = grouped["packs"]
+            scan["errors"] = list(scan.get("walk_errors", [])) + [
+                entry for entry in remaining if entry.get("error")
+            ]
+            old = scan.get("summary", {})
+            scan["summary"] = {
+                "id": scan.get("id"),
+                "root": scan.get("root"),
+                "created_at": scan.get("created_at"),
+                "partial": old.get("partial", False),
+                "series_roots": scan.get("series_roots", []),
+                **grouped["summary"],
+                "walk_errors_count": len(scan.get("walk_errors", [])),
+                "analysis_seconds": old.get("analysis_seconds"),
+                "walk_seconds": old.get("walk_seconds"),
+                "dirs_scanned": old.get("dirs_scanned"),
+            }
+            storage.save_scan(scan)
+            summary = scan["summary"]
+
+        return {
+            "deleted": deleted,
+            "deleted_count": len(deleted),
+            "errors": errors,
+            "warnings": warnings,
+            "summary": summary,
+        }
+
     def active(self) -> list[dict]:
         """Jobs actuellement en cours (y compris en pause), du plus récent au plus ancien."""
         with self.lock:
@@ -718,12 +802,93 @@ class JobManager:
         thread.start()
         return job
 
+    def _start_schedule(self, job: Job, schedule, stop_event: threading.Event) -> None:
+        job.schedule = schedule.model_dump()
+        now = datetime.now().astimezone()
+        if not schedule_module.is_within_windows(now, schedule.windows):
+            next_start = schedule_module.next_window_start(now, schedule.windows)
+            job.pause("schedule", next_start.isoformat() if next_start else None)
+            job.add_log(
+                "Planification : "
+                + schedule_module.describe_windows(schedule.windows)
+            )
+            self._set_schedule_wait_message(job)
+        scheduler = threading.Thread(
+            target=self._schedule_loop,
+            args=(job, schedule, stop_event),
+            daemon=True,
+            name=f"schedule-{job.id[:8]}",
+        )
+        scheduler.start()
+
+    def _set_schedule_wait_message(self, job: Job) -> None:
+        message = "En attente de la plage horaire autorisée"
+        if job.next_resume_at:
+            try:
+                next_start = datetime.fromisoformat(job.next_resume_at)
+                message += f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
+            except ValueError:
+                pass
+        job.update_progress(message=message, eta_seconds=None)
+
+    def _auto_calibrate(self, job: Job, request: CompressRequest) -> None:
+        """Lance un benchmark court si le preset n'a pas de mesure en cache.
+
+        Cela évite les écarts importants entre l'ETA initiale (table générique)
+        et la vitesse réelle observée pendant la compression.
+        """
+        try:
+            hardware_info = hardware.detect_hardware()
+            encoder = media.choose_encoder(
+                request.settings.encoder, hardware_info["ffmpeg"]["encoders"]
+            )
+            if encoder is None:
+                return
+            if (
+                encoder == "av1_vaapi"
+                and not hardware_info["gpu"]["vaapi_available"]
+            ):
+                return
+            benchmark_info = hardware.get_benchmark_or_estimate(
+                hardware_info, encoder, request.settings.preset
+            )
+            if benchmark_info.get("source") == "benchmark":
+                return
+            job.update_progress(
+                phase="calibrating",
+                message="Calibrage de l'ETA sur ce matériel…",
+                eta_seconds=None,
+            )
+            job.add_log(
+                f"Calibration automatique : benchmark {encoder} "
+                f"preset {request.settings.preset}…"
+            )
+            hardware.benchmark(
+                encoder,
+                request.settings.preset,
+                threads=hardware_info["cpu"]["logical_cores"],
+                sample_duration=1,
+            )
+        except Exception as exc:  # le benchmark ne doit jamais bloquer le job
+            job.add_log(f"⚠ Calibration automatique impossible : {exc}")
+
     def _run_compression(self, job: Job, request: CompressRequest, scan: dict) -> None:
         job.set_status("running")
         schedule_stop = threading.Event()
         try:
             if not config.ffmpeg_bin():
                 raise RuntimeError("ffmpeg est introuvable.")
+            if request.schedule.enabled:
+                self._start_schedule(job, request.schedule, schedule_stop)
+                job.wait_if_paused()
+                if job.is_cancelled():
+                    job.set_status(
+                        "cancelled", error="Compression annulée avant démarrage."
+                    )
+                    job.result = {"cancelled": True, "success": 0, "failed": 0}
+                    return
+
+            self._auto_calibrate(job, request)
             plan = self.plan_compression(scan, request)
             tasks = plan["tasks"]
             job.warnings = plan["warnings"] + plan["skipped"]
@@ -767,39 +932,8 @@ class JobManager:
                 f"preset {request.settings.preset}, CRF {request.settings.crf}, "
                 f"{plan['threads']} thread(s)."
             )
-
-            if request.schedule.enabled:
-                job.schedule = request.schedule.model_dump()
-                now = datetime.now().astimezone()
-                if not schedule_module.is_within_windows(now, request.schedule.windows):
-                    next_start = schedule_module.next_window_start(
-                        now, request.schedule.windows
-                    )
-                    job.pause(
-                        "schedule",
-                        next_start.isoformat() if next_start else None,
-                    )
-                    job.update_progress(
-                        message=(
-                            "En attente de la plage horaire autorisée"
-                            + (
-                                f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
-                                if next_start else ""
-                            )
-                        ),
-                        eta_seconds=None,
-                    )
-                    job.add_log(
-                        "Planification : "
-                        + schedule_module.describe_windows(request.schedule.windows)
-                    )
-                scheduler = threading.Thread(
-                    target=self._schedule_loop,
-                    args=(job, request.schedule, schedule_stop),
-                    daemon=True,
-                    name=f"schedule-{job.id[:8]}",
-                )
-                scheduler.start()
+            if "schedule" in job.pause_reasons:
+                self._set_schedule_wait_message(job)
             self._persist(job)
 
             job.wait_if_paused()
@@ -812,6 +946,10 @@ class JobManager:
 
             total_duration = max(0.01, plan["total_duration_sec"])
             completed_duration = 0.0
+            progress_state = {
+                "total_duration": total_duration,
+                "completed_duration": 0.0,
+            }
             per_job_threads = max(
                 1,
                 plan["threads"] // max(1, min(request.concurrency, len(tasks))),
@@ -830,7 +968,7 @@ class JobManager:
                 futures = {
                     pool.submit(
                         self._compress_one, job, task, request, plan,
-                        per_job_threads,
+                        per_job_threads, progress_state,
                     ): task
                     for task in tasks
                 }
@@ -852,6 +990,7 @@ class JobManager:
                         }
                     done += 1
                     completed_duration += task["duration_sec"]
+                    progress_state["completed_duration"] = completed_duration
                     if result.get("status") == "done":
                         successes += 1
                         total_input += result.get("input_size", 0)
@@ -949,7 +1088,13 @@ class JobManager:
             self._persist(job)
 
     def _compress_one(
-        self, job: Job, task: dict, request: CompressRequest, plan: dict, threads: int
+        self,
+        job: Job,
+        task: dict,
+        request: CompressRequest,
+        plan: dict,
+        threads: int,
+        progress_state: dict,
     ) -> dict:
         job.wait_if_paused()
         if job.is_cancelled():
@@ -983,27 +1128,43 @@ class JobManager:
         def on_progress(info: dict) -> None:
             percent = info.get("percent")
             eta = info.get("eta_seconds")
+            speed = info.get("speed")
             if item and percent is not None:
                 item.update(
                     status="running",
                     percent=round(min(99.0, percent), 1),
-                    speed=info.get("speed"),
+                    speed=speed,
                     fps=info.get("fps"),
                     eta_seconds=eta,
                 )
-            # Progression globale : on ajoute la fraction du fichier courant.
-            total_count = max(1, job.progress.get("total") or 1)
-            done_count = job.progress.get("done") or 0
-            current_fraction = (percent or 0) / 100
-            overall = min(99.0, (done_count + current_fraction) / total_count * 100)
+            # ETA globale basée sur la vitesse réelle observée, pour éviter
+            # l'écart entre l'estimation initiale et la progression réelle.
+            current_media = (percent or 0) / 100 * task["duration_sec"]
+            total_duration = max(0.01, progress_state["total_duration"])
+            completed = progress_state["completed_duration"]
+            remaining_media = max(0.0, total_duration - completed - current_media)
+            speed_ratio = None
+            if speed and str(speed).endswith("x"):
+                try:
+                    speed_ratio = float(str(speed)[:-1])
+                except ValueError:
+                    speed_ratio = None
+            eta_total = (
+                remaining_media / speed_ratio
+                if speed_ratio and speed_ratio > 0
+                else eta
+            )
+            overall = min(
+                99.0, (completed + current_media) / total_duration * 100
+            )
             job.update_progress(
                 phase="compressing",
                 percent=round(overall, 1),
                 message=f"{task['filename']} — {percent:.0f}%" if percent else task["filename"],
                 current=task["filename"],
-                speed=info.get("speed"),
+                speed=speed,
                 fps=info.get("fps"),
-                eta_seconds=eta,
+                eta_seconds=round(eta_total, 1) if eta_total else eta,
             )
 
         try:

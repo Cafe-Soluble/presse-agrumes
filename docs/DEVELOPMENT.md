@@ -47,10 +47,23 @@ ln -sf ~/.local/opt/ffmpeg-master-latest-linux64-gpl/bin/ffprobe ~/.local/bin/ff
 `config.py` cherche aussi `~/.local/bin`, ce qui couvre le cas d'un service
 systemd avec un `PATH` minimal (mais `FFMPEG_BIN` reste plus explicite).
 
+## Configuration de développement
+
+Copiez `config.example.toml` en `config.toml` (ignoré par git) pour définir un
+mot de passe stable, le port, les racines et les chemins ffmpeg. Les variables
+d'environnement `PA_*` restent prioritaires, ce qui permet aux tests et à
+Playwright de forcer `PA_AUTH_DISABLED=1`, `PA_DATA_DIR` et `PA_ALLOWED_ROOTS`.
+
+```bash
+cp config.example.toml config.toml
+chmod 600 config.toml
+```
+
 ## Lancer en développement
 
-L'authentification est active par défaut (mot de passe généré affiché en
-console). Pour éviter la boîte de dialogue HTTP Basic en développement :
+L'authentification est active par défaut (mot de passe de `config.toml`, ou
+généré et affiché en console). Pour éviter la boîte de dialogue HTTP Basic en
+développement :
 
 ```bash
 PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
@@ -126,6 +139,7 @@ Pour un test ciblé :
 ### Ajouter un test
 
 - Unitaire : `tests/test_core.py`.
+- Configuration : `tests/test_config_file.py` (TOML, priorité, validation).
 - API / intégration : `tests/test_api.py` + helpers `scan_root`, `wait_job`.
 - Ne jamais utiliser le `data/` réel : passer par les fixtures.
 

@@ -30,6 +30,7 @@ from .jobs import TERMINAL_STATUSES, manager
 from .models import (
     BenchmarkRequest,
     CompressRequest,
+    DeleteScanItems,
     PreflightRequest,
     ScanRequest,
     TestRequest,
@@ -246,6 +247,16 @@ npm run build</pre>
         if not storage.delete_scan(scan_id):
             raise HTTPException(status_code=404, detail="Scan introuvable.")
         return {"deleted": True}
+
+    @app.post("/api/scans/{scan_id}/delete")
+    async def delete_scan_items(scan_id: str, request: DeleteScanItems):
+        scan = storage.load_scan(scan_id)
+        if scan is None:
+            raise HTTPException(status_code=404, detail="Scan introuvable.")
+        result = await asyncio.to_thread(
+            manager.delete_scan_items, scan, request.item_ids, request.paths
+        )
+        return result
 
     @app.post("/api/preflight")
     async def preflight(request: PreflightRequest):

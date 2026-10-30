@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   History,
   Loader2,
   Sparkles,
+  Trash2,
   Zap,
 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -93,8 +94,13 @@ interface BrowseState {
   initial: string;
 }
 
+type DeleteTarget =
+  | { kind: "item"; item: ScanItem }
+  | { kind: "error"; path: string };
+
 export function WorkspacePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -127,6 +133,7 @@ export function WorkspacePage() {
   const [testItem, setTestItem] = useState<ScanItem | null>(null);
   const [browse, setBrowse] = useState<BrowseState>({ open: false, mode: "root", initial: "" });
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [jobDismissed, setJobDismissed] = useState(false);
 
   const scanTerminalRef = useRef("");
@@ -179,6 +186,16 @@ export function WorkspacePage() {
     setSelection(new Set());
     setJobDismissed(false);
   }, [activeScanId]);
+
+  // Le bouton « Suivi » de la bannière navigue avec #job : on scrolle vers le
+  // panneau une fois que le job est chargé.
+  useEffect(() => {
+    if (location.hash !== "#job" || !compressionJob.data) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById("job")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [location.hash, compressionJob.data]);
 
   // Si un job de compression tourne encore (navigateur fermé puis rouvert),
   // on réaffiche automatiquement son suivi et le scan associé.
@@ -245,6 +262,7 @@ export function WorkspacePage() {
     if (snapshot.status === "done") {
       compressionTerminalRef.current = key;
       queryClient.invalidateQueries({ queryKey: ["scans"] });
+      queryClient.invalidateQueries({ queryKey: ["hardware"] });
       if (scan?.id) queryClient.invalidateQueries({ queryKey: ["scan", scan.id] });
       const result = snapshot.result as { saved_bytes?: number; success?: number } | undefined;
       toast({
@@ -324,6 +342,67 @@ export function WorkspacePage() {
       toast({ title: "Compression reprise", variant: "success" });
     },
     onError: (error: Error) => toast({ title: "Reprise impossible", description: error.message, variant: "error" }),
+  });
+
+  const deleteMedia = useMutation({
+    mutationFn: (target: DeleteTarget) => {
+      if (!scan) throw new Error("Aucun scan actif.");
+      return api.deleteScanItems(
+        scan.id,
+        target.kind === "item" ? [target.item.id] : [],
+        target.kind === "error" ? [target.path] : [],
+      );
+    },
+    onSuccess: (result, target) => {
+      if (scan) queryClient.invalidateQueries({ queryKey: ["scan", scan.id] });
+      queryClient.invalidateQueries({ queryKey: ["scans"] });
+      if (target.kind === "item") {
+        setSelection((current) => {
+          const next = new Set(current);
+          next.delete(target.item.id);
+          return next;
+        });
+      }
+      if (result.deleted_count > 0) {
+        toast({
+          title: `${formatNumber(result.deleted_count)} fichier(s) supprimé(s)`,
+          description: result.errors.length
+            ? `${result.errors.length} fichier(s) n'ont pas pu être supprimés.`
+            : "Suppression définitive effectuée.",
+          variant: result.errors.length ? "warning" : "success",
+        });
+      } else {
+        toast({
+          title: "Suppression impossible",
+          description: result.errors[0]?.error ?? "Aucun fichier supprimé.",
+          variant: "error",
+        });
+      }
+      setDeleteTarget(null);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Suppression impossible", description: error.message, variant: "error" });
+      setDeleteTarget(null);
+    },
+  });
+
+  const calibrate = useMutation({
+    mutationFn: () =>
+      api.benchmark({
+        encoder: effectiveEncoder(hardwareQuery.data, settings),
+        preset: Number(settings.preset),
+        force: false,
+      }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["hardware"], result.hardware);
+      toast({
+        title: "ETA calibrée",
+        description: `${result.benchmark.fps} fps mesurés pour ${result.benchmark.encoder} (preset ${result.benchmark.preset}).`,
+        variant: "success",
+      });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Calibrage impossible", description: error.message, variant: "error" }),
   });
 
   const scanning = startScan.isPending || (scanJob.data ? ["queued", "running"].includes(scanJob.data.status) : false);
@@ -526,6 +605,10 @@ export function WorkspacePage() {
             onSelectAll={(ids) => setSelection(new Set(ids))}
             onClearSelection={() => setSelection(new Set())}
             onTest={openTest}
+            onDeleteItem={(item) => setDeleteTarget({ kind: "item", item })}
+            onDeleteError={(path) => setDeleteTarget({ kind: "error", path })}
+            onCalibrate={() => calibrate.mutate()}
+            calibrating={calibrate.isPending}
             onRescan={() => handleStartScan(scan.root)}
             hardware={hardwareQuery.data}
             settings={settings}
@@ -650,6 +733,54 @@ export function WorkspacePage() {
                 <AlertTriangle className="h-4 w-4" />
               )}
               Supprimer les originaux
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" /> Supprimer définitivement ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.kind === "item" ? (
+                <>
+                  <strong className="text-foreground">
+                    {deleteTarget.item.kind === "series"
+                      ? `${deleteTarget.item.episode_count ?? 0} fichier(s) du pack`
+                      : "Le fichier"}{" "}
+                    « {deleteTarget.item.name} » ({deleteTarget.item.size_human})
+                  </strong>{" "}
+                  sera supprimé du disque.
+                </>
+              ) : (
+                <>
+                  Le fichier <strong className="break-all font-mono text-foreground">{deleteTarget?.path}</strong>{" "}
+                  sera supprimé du disque.
+                </>
+              )}{" "}
+              Cette action est <strong>irréversible</strong> : aucune corbeille, aucun test qualité,
+              aucun original conservé. Le scan sera actualisé après suppression.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMedia.isPending}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMedia.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) deleteMedia.mutate(deleteTarget);
+              }}
+            >
+              {deleteMedia.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              Supprimer définitivement
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

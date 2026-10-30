@@ -8,15 +8,17 @@ Les erreurs utilisent le format `{"detail": "message"}`.
 
 ## Authentification
 
-Active par défaut. Si `PA_AUTH_PASSWORD` n'est pas fourni, un mot de passe
-temporaire est généré au démarrage et affiché dans la console. Toutes les routes
-(y compris `/api/health`) exigent HTTP Basic :
+Active par défaut. Le mot de passe est lu dans `config.toml` (`[auth] password`).
+Si aucun mot de passe n'est fourni, un mot de passe temporaire est généré au
+démarrage et affiché dans la console. Toutes les routes (y compris
+`/api/health`) exigent HTTP Basic :
 
 ```bash
 curl -u agrumes:motdepasse http://127.0.0.1:8080/api/health
 ```
 
-Pour désactiver l'authentification en développement : `PA_AUTH_DISABLED=1`.
+Variables d'environnement prioritaires : `PA_AUTH_USER`, `PA_AUTH_PASSWORD`,
+`PA_AUTH_DISABLED=1` (développement uniquement).
 
 ## Santé et configuration
 
@@ -123,6 +125,34 @@ Le flux se termine quand le statut est `done`, `error`, `cancelled` ou
 | GET | `/api/scans` | Index des scans (résumés). |
 | GET | `/api/scans/{scan_id}` | Scan complet : fichiers, items, packs, erreurs. |
 | DELETE | `/api/scans/{scan_id}` | Supprime l'index (pas les vidéos). |
+| POST | `/api/scans/{scan_id}/delete` | Supprime des fichiers média ciblés. |
+
+### Suppression directe
+
+```json
+{
+  "item_ids": ["file:…", "pack:…"],
+  "paths": ["/mnt/media/fichier-en-erreur.mp4"]
+}
+```
+
+Les `item_ids` suppriment un fichier ou tous les épisodes d'un pack ; `paths`
+permet de cibler un fichier en erreur. Seuls les chemins déjà présents dans le
+scan sont acceptés, les liens symboliques sont refusés et le fichier résolu doit
+rester sous la racine du scan. Réponse :
+
+```json
+{
+  "deleted": ["/mnt/media/fichier.mp4"],
+  "deleted_count": 1,
+  "errors": [],
+  "warnings": [],
+  "summary": { "items_count": 12 }
+}
+```
+
+Cette opération est **irréversible** et distincte de la gestion des originaux
+pendant une compression.
 
 ### Préflight
 

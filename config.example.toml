@@ -1,0 +1,33 @@
+# Configuration Presse-Agrumes
+# Copiez ce fichier en `config.toml`, adaptez les valeurs, puis :
+#   chmod 600 config.toml
+# Le fichier `config.toml` est ignoré par git (le mot de passe ne sera pas
+# publié). Les variables d'environnement PA_* ont priorité sur ce fichier.
+
+[server]
+# Adresse d'écoute. 0.0.0.0 rend l'interface accessible sur le réseau local.
+host = "0.0.0.0"
+# Port préféré. Si occupé, l'application cherche automatiquement le suivant.
+port = 8080
+
+[paths]
+# Dossier des scans, jobs, tests et benchmarks.
+# Relatif au dossier de ce fichier, ou chemin absolu.
+data_dir = "./data"
+# Racines auxquelles l'interface et le navigateur de dossiers ont accès.
+# RESTREIGNEZ-LES à vos partages média.
+allowed_roots = ["/mnt/media", "/srv/media"]
+
+[auth]
+# Authentification HTTP Basic (interface web).
+user = "agrumes"
+# Définissez ici votre mot de passe. Le fichier doit être lisible uniquement
+# par l'utilisateur du service : chmod 600 config.toml
+password = "changez-moi"
+# Mettre à true uniquement pour du développement local sans mot de passe.
+disabled = false
+
+[ffmpeg]
+# Facultatif : chemins absolus si ffmpeg n'est pas dans le PATH du service.
+# ffmpeg = "/usr/bin/ffmpeg"
+# ffprobe = "/usr/bin/ffprobe"

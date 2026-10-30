@@ -416,6 +416,14 @@ export interface PreflightResult {
   sample_destinations: { source: string; destination: string }[];
 }
 
+export interface DeleteScanResult {
+  deleted: string[];
+  deleted_count: number;
+  errors: { path: string; error: string }[];
+  warnings: Warning[];
+  summary: ScanSummary;
+}
+
 export interface CompressionPayload {
   scan_id: string;
   item_ids: string[];

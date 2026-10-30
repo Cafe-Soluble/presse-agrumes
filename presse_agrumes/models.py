@@ -140,3 +140,16 @@ class BenchmarkRequest(BaseModel):
     preset: int = Field(default=8, ge=0, le=13)
     threads: int | None = Field(default=None, ge=1, le=128)
     force: bool = False
+
+
+class DeleteScanItems(BaseModel):
+    """Suppression directe de fichiers depuis un scan (sans compression)."""
+
+    item_ids: list[str] = Field(default_factory=list)
+    paths: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _at_least_one(self):
+        if not self.item_ids and not self.paths:
+            raise ValueError("Indiquez au moins un item ou un chemin à supprimer.")
+        return self

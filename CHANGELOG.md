@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.0] — 2026-10-30
+
+### Ajouté
+
+- **Fichier de configuration `config.toml`** : mot de passe, utilisateur, port,
+  racines autorisées, dossier de données et chemins ffmpeg. Les variables
+  d'environnement restent prioritaires. `config.example.toml` fourni.
+- **Suppression directe** d'un fichier, pack ou fichier en erreur depuis les
+  résultats, avec confirmation et mise à jour du scan. Route
+  `POST /api/scans/{id}/delete`.
+- **Limite d'affichage et de sélection** : 10, 20, 30, 50, 100 ou tout ;
+  « Sélectionner affichés » sélectionne uniquement la page visible.
+- **ETA fiabilisée** : calibration automatique du preset au lancement si aucune
+  mesure n'existe, bouton « Calibrer (~5 s) », recalcul de l'ETA globale à partir
+  de la vitesse réelle ffmpeg.
+- Le bouton **Suivi** de la bannière ouvre et scrolle maintenant vers le panneau
+  détaillé de la compression.
+
+### Modifié
+
+- Le mot de passe n'est plus affiché en clair quand il vient de `config.toml` ;
+  la console indique le fichier utilisé (et un avertissement si ses permissions
+  sont trop larges).
+- Version 0.3.0.
+
 ## [0.2.0] — 2026-10-30
 
 ### Ajouté

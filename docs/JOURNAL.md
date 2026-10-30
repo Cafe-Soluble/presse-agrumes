@@ -161,3 +161,28 @@
   Playwright → 1 passé avec auth Basic. Vérifications manuelles : auth 401/200,
   port 8081, `--reload` avec mot de passe partagé.
 - **Reste** : commit + tag `v0.2.0` + push (fait après cette entrée).
+
+## 2026-10-30 — v0.3.0 : config.toml, suppression directe, limites, ETA
+
+- **Mot de passe en fichier** : `config.py` charge `config.toml` (TOML via
+  `tomllib`/`tomli`), avec sections `[server]`, `[paths]`, `[auth]`, `[ffmpeg]`.
+  Priorité env > fichier > défauts. `config.example.toml` fourni, `config.toml`
+  ignoré par git. La console indique le fichier utilisé (et ne réaffiche pas le
+  secret) ; avertissement si permissions trop larges. Tests TOML + subprocess.
+- **Suppression directe** : `POST /api/scans/{id}/delete` (`item_ids` ou `paths`),
+  validation stricte (présent dans le scan, sous la racine, pas de symlink),
+  reconstruction de `files/items/packs/summary`. Bouton **Suppr.** par ligne et
+  sur les fichiers en erreur, confirmation AlertDialog. Tests de suppression
+  fichier + erreur + refus de chemin inconnu.
+- **Limites 10/20/30/50/100/Tout** : sélecteur d'affichage et bouton
+  « Sélectionner affichés » (sans AV1), « Tout sélectionner » conservé.
+- **Bouton Suivi** : navigue vers `/?scan=…/#job` et scrolle vers le panneau de
+  suivi ; `useLocation` gère l'arrivée sur la page.
+- **ETA** : calibration automatique 1 s au lancement si le preset n'a pas de
+  benchmark, bouton « Calibrer (~5 s) » dans les résultats, ETA globale recalculée
+  avec `speed` ffmpeg. Test manuel : preset 8 calibré à 75 fps, compression OK.
+- **Validation** : `pytest` → **35 passés** ; typecheck/build OK ; parcours
+  Playwright manuel : limite 17→10, sélection de 10, suppression UI (fichier
+  supprimé, ligne retirée), job planifié en pause, bouton Suivi (`#job`), job
+  avec calibration ETA. Login avec mot de passe `config.toml` validé.
+- **Reste** : commit + tag `v0.3.0` + push (fait après cette entrée).

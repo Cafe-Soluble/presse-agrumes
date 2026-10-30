@@ -30,6 +30,14 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
     print(f"  🍊 Presse-Agrumes v{config.VERSION}")
     print(line)
     print(f"  Données            : {config.DATA_DIR}")
+    print(
+        "  Configuration      : "
+        + (
+            str(config.CONFIG_FILE)
+            if config.CONFIG_FILE_EXISTS
+            else f"{config.CONFIG_FILE} (absente — exemple : config.example.toml)"
+        )
+    )
     print(f"  ffmpeg             : {config.ffmpeg_bin() or 'INTROUVABLE (installez ffmpeg)'}")
     print(f"  ffprobe            : {config.ffprobe_bin() or 'INTROUVABLE'}")
     if requested_port != port:
@@ -54,6 +62,17 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
         if config.AUTH_PASSWORD_GENERATED:
             print(f"  Mot de passe       : {config.AUTH_PASSWORD}")
             print("                       (temporaire, régénéré à chaque démarrage)")
+        elif config.AUTH_PASSWORD_SOURCE == "config":
+            print(f"  Mot de passe       : défini dans {config.CONFIG_FILE}")
+            try:
+                mode = config.CONFIG_FILE.stat().st_mode & 0o777
+                if mode & 0o077:
+                    print(
+                        "                       ⚠ fichier lisible par d'autres : "
+                        f"chmod 600 {config.CONFIG_FILE}"
+                    )
+            except OSError:
+                pass
         else:
             print("  Mot de passe       : défini via PA_AUTH_PASSWORD")
     else:

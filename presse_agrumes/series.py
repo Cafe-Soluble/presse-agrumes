@@ -330,3 +330,30 @@ def resolve_item_files(scan: dict, item_ids: Iterable[str]) -> tuple[list[dict],
                 continue
             selected_files[path] = entry
     return list(selected_files.values()), warnings
+
+
+def resolve_item_paths(scan: dict, item_ids: Iterable[str]) -> tuple[list[str], list[dict]]:
+    """Comme `resolve_item_files`, mais SANS filtrer AV1/erreurs.
+
+    Utilisé par la suppression directe : on doit pouvoir supprimer un pack
+    complet, un fichier déjà AV1 ou un fichier en erreur.
+    """
+    by_id = {item["id"]: item for item in scan.get("items", [])}
+    by_path = {entry["path"]: entry for entry in scan.get("files", [])}
+    paths: list[str] = []
+    warnings: list[dict] = []
+    for item_id in item_ids:
+        item = by_id.get(item_id)
+        if item is None:
+            warnings.append({"item_id": item_id, "warning": "item inconnu dans ce scan"})
+            continue
+        if item["kind"] == "series":
+            candidates = [episode["path"] for episode in item.get("episodes", [])]
+        else:
+            candidates = [item["path"]]
+        for path in candidates:
+            if path in by_path and path not in paths:
+                paths.append(path)
+            elif path not in by_path:
+                warnings.append({"path": path, "warning": "fichier absent du scan"})
+    return paths, warnings

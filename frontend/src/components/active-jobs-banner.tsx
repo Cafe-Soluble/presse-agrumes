@@ -64,7 +64,10 @@ export function ActiveJobsBanner() {
 
   const goToJob = (job: JobSnapshot) => {
     if (job.kind === "compress" && job.context?.scan_id) {
-      navigate(`/?scan=${job.context.scan_id}`);
+      navigate(`/?scan=${job.context.scan_id}#job`);
+      window.setTimeout(() => {
+        document.getElementById("job")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
     } else {
       navigate("/");
     }
@@ -142,14 +145,17 @@ export function ActiveJobsBanner() {
                     Reprendre
                   </Button>
                 )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={paused ? "secondary" : "default"}
-                  onClick={() => goToJob(job)}
-                >
-                  Suivi <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
+                {job.kind === "compress" && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={paused ? "secondary" : "default"}
+                    onClick={() => goToJob(job)}
+                    title="Ouvrir le panneau de suivi : progression, ETA, pause et journal"
+                  >
+                    Suivi <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           );

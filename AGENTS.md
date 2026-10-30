@@ -28,13 +28,14 @@ explicite de l'utilisateur.
 
 ```bash
 # Démarrage complet (venv + build frontend si absent)
+cp config.example.toml config.toml && chmod 600 config.toml   # première fois
 ./run.sh
 
 # Backend seul
 .venv/bin/python -m presse_agrumes --port 8080
 
-# Développement (backend reload + Vite proxy sur 5173)
-scripts/dev.sh
+# Développement sans auth (127.0.0.1)
+PA_AUTH_DISABLED=1 scripts/dev.sh
 
 # Tests backend
 .venv/bin/python -m pytest
@@ -43,7 +44,7 @@ scripts/dev.sh
 cd frontend
 npm run typecheck
 npm run build
-npm run test:e2e        # Playwright, nécessite un serveur
+npm run test:e2e        # Playwright, serveur auth désactivée
 ```
 
 Le venv local contient `pytest`, `httpx`, `fastapi`, `uvicorn`. Sur la VM de
@@ -65,7 +66,7 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `paths.py` | `guard_path`, racines autorisées, navigation, permissions, `ensure_writable_dir`. |
 | `models.py` | Schémas Pydantic des requêtes (dont `CompressionSchedule`). |
 | `storage.py` | Écriture JSON atomique (scans, jobs, tests, cache matériel). |
-| `config.py` | Variables `PA_*`, détection de ffmpeg/ffprobe, dossiers, auth générée. |
+| `config.py` | Chargement `config.toml`, variables `PA_*`, détection ffmpeg, auth. |
 | `__main__.py` | CLI Uvicorn, scan de port, affichage URL/IP/mot de passe. |
 
 ### Frontend `frontend/src/`
@@ -119,6 +120,15 @@ data/cache/hardware.json
 
 Le frontend l'appelle automatiquement avec un debounce (~700 ms) à chaque
 changement de sélection/réglages. Il ne crée que des dossiers de sortie.
+
+### Suppression directe
+
+`POST /api/scans/{id}/delete` appelle `JobManager.delete_scan_items` :
+- accepte des `item_ids` (pack → tous les épisodes) et/ou des `paths` déjà
+  présents dans le scan (utile pour les fichiers en erreur) ;
+- refuse les liens symboliques et tout chemin hors de la racine du scan ;
+- supprime, reconstruit `files/items/packs/summary` et réécrit le scan ;
+- action irréversible, confirmation obligatoire côté UI.
 
 ### Compression
 
@@ -176,6 +186,12 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
     URLs du frontend (utiliser des chemins relatifs).
 13. **Pause** : les ffmpeg sont suspendus par `SIGSTOP` ; ne jamais supprimer un
     fichier temporaire pendant une pause (le job doit pouvoir reprendre).
+14. **Configuration** : `config.toml` contient le mot de passe et est ignoré par
+    git. Ne jamais committer `config.toml`, ne pas exposer le mot de passe dans
+    `/api/config`. Les variables `PA_*` sont prioritaires sur le fichier.
+15. **Suppression directe** : ne jamais accepter un chemin arbitraire ; vérifier
+    qu'il est dans `scan["files"]`, sous la racine du scan, non symlink, puis
+    reconstruire le scan. Confirmation UI obligatoire.
 
 ## Ajouter une fonctionnalité
 
@@ -204,9 +220,11 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
   `PA_ALLOWED_ROOTS` dans un tmp), génère de vraies vidéos H.264 avec ffmpeg,
   et fournit `TestClient`.
 - `tests/test_core.py` : formats, estimation, permissions, fichiers vides/corrompus, planification, pause de job, scan de ports, regroupement séries.
+- `tests/test_config_file.py` : lecture TOML, validation, priorité du mot de passe de configuration.
 - `tests/test_api.py` : health, SPA, scan, préflight, test qualité, compression
   avec suppression/déplacement/remplacement, dossier miroir, dossier en lecture
-  seule, fichiers AV1, auth Basic, jobs actifs, pause/reprise, planification.
+  seule, fichiers AV1, auth Basic, jobs actifs, pause/reprise, planification,
+  suppression directe de fichiers/packs et refus de chemins inconnus.
 - Les tests nécessitent ffmpeg/ffprobe ; ils sont ignorés (`skip`) sinon.
 - `frontend/e2e/smoke.spec.ts` : navigation SPA et absence d'erreurs console.
 
@@ -248,6 +266,11 @@ locale sans root.
   Ne pas remplacer par une suppression/relance de ffmpeg.
 - **Jobs actifs** : `/api/jobs/active` ne lit que la mémoire ; après redémarrage
   du service, les jobs sont `interrupted` (pas de reprise automatique).
+- **config.toml** : chargé à l'import de `config.py`; un redémarrage est requis
+  après modification. Les variables d'environnement gagnent sur le fichier.
+- **ETA** : le benchmark de calibration automatique utilise 1 s ; le benchmark
+  manuel utilise 4 s. Le cache est par `encoder:preset:threads`. La durée
+  réelle de ffmpeg (`speed`) recalcule l'ETA globale.
 
 ## Journal
 

@@ -32,6 +32,11 @@ MSG
   fi
 fi
 
+if [ ! -f "config.toml" ] && [ -z "${PA_CONFIG_FILE:-}" ]; then
+  echo "ℹ Aucun config.toml : un mot de passe temporaire sera généré au démarrage."
+  echo "  Pour un mot de passe fixe : cp config.example.toml config.toml && chmod 600 config.toml"
+fi
+
 if ! command -v ffmpeg >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/ffmpeg" ] && [ -z "${FFMPEG_BIN:-}" ]; then
   echo "⚠ ffmpeg est introuvable dans le PATH. Installez-le ou définissez FFMPEG_BIN." >&2
 fi

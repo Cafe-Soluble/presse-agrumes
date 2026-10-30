@@ -8,6 +8,7 @@ import {
   FolderOpen,
   RefreshCw,
   Search,
+  Trash2,
   Tv,
 } from "lucide-react";
 import type { CompressionSettings, Hardware, Scan, ScanError, ScanItem } from "@/lib/types";
@@ -44,6 +45,10 @@ interface ResultsPanelProps {
   onSelectAll: (ids: string[]) => void;
   onClearSelection: () => void;
   onTest: (item: ScanItem) => void;
+  onDeleteItem: (item: ScanItem) => void;
+  onDeleteError: (path: string) => void;
+  onCalibrate: () => void;
+  calibrating?: boolean;
   onRescan: () => void;
   hardware?: Hardware;
   settings: CompressionSettings;
@@ -58,6 +63,10 @@ export function ResultsPanel({
   onSelectAll,
   onClearSelection,
   onTest,
+  onDeleteItem,
+  onDeleteError,
+  onCalibrate,
+  calibrating,
   onRescan,
   hardware,
   settings,
@@ -67,7 +76,7 @@ export function ResultsPanel({
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("gain");
   const [search, setSearch] = useState("");
-  const [limit, setLimit] = useState(60);
+  const [displayLimit, setDisplayLimit] = useState<number | "all">(30);
 
   const errors = useMemo(() => {
     const map = new Map<string, ScanError>();
@@ -104,7 +113,7 @@ export function ResultsPanel({
     return items.sort(sorters[sort]);
   }, [scan, filter, sort, search]);
 
-  const visible = filtered.slice(0, limit);
+  const visible = displayLimit === "all" ? filtered : filtered.slice(0, displayLimit);
   const stats = selectionStats(scan, selection, hardware, settings, resourcePercent, concurrency);
   const summary = scan.summary;
 
@@ -158,7 +167,6 @@ export function ResultsPanel({
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
-                setLimit(60);
               }}
               placeholder="Rechercher un film, une série, un épisode…"
               className="pl-9"
@@ -169,7 +177,6 @@ export function ResultsPanel({
               value={filter}
               onValueChange={(value) => {
                 setFilter(value as Filter);
-                setLimit(60);
               }}
             >
               <SelectTrigger className="w-[160px]">
@@ -195,9 +202,34 @@ export function ResultsPanel({
                 <SelectItem value="name">Nom A→Z</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={String(displayLimit)}
+              onValueChange={(value) => setDisplayLimit(value === "all" ? "all" : Number(value))}
+            >
+              <SelectTrigger className="w-[130px]" title="Nombre d'éléments affichés">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">Afficher 10</SelectItem>
+                <SelectItem value="20">Afficher 20</SelectItem>
+                <SelectItem value="30">Afficher 30</SelectItem>
+                <SelectItem value="50">Afficher 50</SelectItem>
+                <SelectItem value="100">Afficher 100</SelectItem>
+                <SelectItem value="all">Tout afficher</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               type="button"
               variant="secondary"
+              size="sm"
+              onClick={() => onSelectAll(visible.filter((item) => !isAlreadyAv1(item)).map((item) => item.id))}
+              title="Sélectionner uniquement les éléments actuellement affichés"
+            >
+              Sélectionner affichés ({visible.length})
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               size="sm"
               onClick={() => onSelectAll(filtered.filter((item) => !isAlreadyAv1(item)).map((item) => item.id))}
             >
@@ -220,10 +252,26 @@ export function ResultsPanel({
                 {formatBytes(stats.size)} · {formatDuration(stats.duration)}
               </span>
               <span className="text-muted-foreground/50">•</span>
-              <span className="text-primary">ETA {formatEta(stats.seconds)}</span>
+              <span className="text-primary">ETA initiale {formatEta(stats.seconds)}</span>
               <Badge variant={stats.source === "mesuré" ? "success" : "secondary"} className="ml-1 text-[10px]">
                 {stats.source}
               </Badge>
+              <span className="text-[10px] text-muted-foreground">
+                affinée au lancement
+              </span>
+              {stats.source !== "mesuré" && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] text-primary"
+                  onClick={onCalibrate}
+                  disabled={calibrating}
+                  title="Mesurer la vitesse réelle de ce preset sur cette machine (mire 1080p, quelques secondes)"
+                >
+                  {calibrating ? "Calibrage…" : "Calibrer (~5 s)"}
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -241,16 +289,17 @@ export function ResultsPanel({
                 selected={selection.has(item.id)}
                 onToggle={() => onToggle(item.id)}
                 onTest={() => onTest(item)}
+                onDelete={() => onDeleteItem(item)}
                 hardware={hardware}
                 settings={settings}
                 resourcePercent={resourcePercent}
                 concurrency={concurrency}
               />
             ))}
-            {filtered.length > limit && (
+            {displayLimit !== "all" && filtered.length > displayLimit && (
               <div className="pt-2 text-center">
-                <Button type="button" variant="ghost" onClick={() => setLimit((value) => value + 60)}>
-                  <ChevronDown className="h-4 w-4" /> Afficher plus ({filtered.length - limit} restants)
+                <Button type="button" variant="ghost" onClick={() => setDisplayLimit("all")}>
+                  <ChevronDown className="h-4 w-4" /> Afficher tout ({filtered.length} éléments)
                 </Button>
               </div>
             )}
@@ -270,7 +319,19 @@ export function ResultsPanel({
                     <Badge variant="destructive" className="rounded px-1.5 py-0 text-[9px]">
                       {errorCodeLabel(entry.error_code)}
                     </Badge>
-                    <span className="break-all font-mono text-red-300">{entry.path}</span>
+                    <span className="min-w-0 flex-1 break-all font-mono text-red-300">{entry.path}</span>
+                    {entry.error_code && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-6 border-destructive/30 px-2 text-[10px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => onDeleteError(entry.path)}
+                        title="Supprimer définitivement ce fichier"
+                      >
+                        <Trash2 className="h-3 w-3" /> Supprimer
+                      </Button>
+                    )}
                   </div>
                   <p className="mt-1 text-red-200/90">{entry.error}</p>
                   {entry.error_hint && (
@@ -311,6 +372,7 @@ function ItemRow({
   selected,
   onToggle,
   onTest,
+  onDelete,
   hardware,
   settings,
   resourcePercent,
@@ -320,6 +382,7 @@ function ItemRow({
   selected: boolean;
   onToggle: () => void;
   onTest: () => void;
+  onDelete: () => void;
   hardware?: Hardware;
   settings: CompressionSettings;
   resourcePercent: number;
@@ -438,9 +501,19 @@ function ItemRow({
         </div>
       </div>
 
-      <div className="col-start-2 flex sm:col-start-auto">
+      <div className="col-start-2 flex flex-wrap gap-1.5 sm:col-start-auto">
         <Button type="button" variant="outline" size="sm" onClick={onTest}>
           <FlaskConical className="h-3.5 w-3.5" /> Test
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          onClick={onDelete}
+          title="Supprimer définitivement ce fichier ou ce pack"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Suppr.
         </Button>
       </div>
     </div>

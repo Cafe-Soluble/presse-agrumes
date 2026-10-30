@@ -159,3 +159,55 @@ cohérence, les tests et le build avant de taguer.
 
 **Conséquences** : releases traçables et vérifiables via `/api/health`. Le build
 frontend reste versionné pour un déploiement sans Node.
+
+## ADR-014 — Mot de passe dans config.toml
+
+**Contexte** : l'utilisateur ne veut pas mettre le mot de passe dans
+l'environnement ; les variables sont peu lisibles sur un NAS.
+
+**Décision** : fichier TOML `config.toml` (ignoré par git) avec `[auth] user` et
+`[auth] password`, chargé à l'import. Les variables `PA_*` restent prioritaires
+pour les conteneurs/tests. Si aucun mot de passe n'est fourni, génération
+temporaire + affichage console.
+
+**Conséquences** : configuration lisible et versionnable via
+`config.example.toml`, permissions `chmod 600` recommandées, redémarrage requis
+après modification.
+
+## ADR-015 — Suppression directe depuis les résultats
+
+**Contexte** : l'utilisateur veut supprimer immédiatement des fichiers inutiles
+ou corrompus, sans passer par une compression.
+
+**Décision** : route dédiée `POST /api/scans/{id}/delete` avec `item_ids` ou
+`paths` limités aux fichiers déjà présents dans le scan ; refus des symlinks et
+des chemins hors racine ; confirmation UI ; reconstruction du scan après
+suppression.
+
+**Conséquences** : action rapide mais irréversible (pas de corbeille). La
+gestion « supprimer après compression » reste séparée et vérifiée par ffprobe.
+
+## ADR-016 — Sélection et affichage limités
+
+**Contexte** : les bibliothèques peuvent contenir des milliers de fichiers et
+l'utilisateur veut traiter seulement 10, 20, 30 ou 50 médias.
+
+**Décision** : sélecteur d'affichage 10/20/30/50/100/tout + bouton
+« Sélectionner affichés » ; « Tout sélectionner » conserve le comportement
+global.
+
+**Conséquences** : maîtrise du DOM et des lots de compression, sans limiter la
+recherche ni les filtres.
+
+## ADR-017 — ETA calibrée et recalculée
+
+**Contexte** : l'ETA initiale (table générique) peut être très différente de la
+vitesse réelle, surtout si le benchmark a été fait pour un autre preset.
+
+**Décision** : calibration automatique courte (1 s) au lancement si le preset
+n'a pas de cache ; bouton « Calibrer (~5 s) » dans les résultats ; ETA globale
+recalculée en continu à partir de `speed` ffmpeg. L'ETA des résultats est
+explicitement présentée comme initiale.
+
+**Conséquences** : démarrage légèrement plus long lors de la première
+compression d'un preset, mais ETA du panneau de suivi beaucoup plus fiable.

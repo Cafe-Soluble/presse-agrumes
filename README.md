@@ -91,12 +91,15 @@ Le backend ne fait confiance à aucun chemin : chaque accès passe par `presse_a
 ```bash
 git clone https://github.com/Cafe-Soluble/presse-agrumes.git
 cd presse-agrumes
+cp config.example.toml config.toml
+chmod 600 config.toml
+# Éditez config.toml : mot de passe, racines autorisées, port...
 ./run.sh
 ```
 
 `run.sh` crée le venv, installe les dépendances, compile le frontend s'il manque, puis démarre le serveur.
 
-Au démarrage, la console affiche :
+Si `config.toml` est absent, un mot de passe temporaire est généré et affiché en console. Avec `config.toml`, la console indique simplement que le mot de passe est défini dans le fichier :
 
 ```text
 Port               : 8080  (ou 8081 si 8080 est occupé)
@@ -104,20 +107,20 @@ Adresse(s) locale(s) :
   http://192.168.1.50:8080
 Authentification   : HTTP Basic
 Utilisateur        : agrumes
-Mot de passe       : 8beafed746df… (temporaire, régénéré à chaque démarrage)
+Mot de passe       : défini dans /opt/presse-agrumes/config.toml
 ```
 
-Ouvrez l'URL affichée, puis connectez-vous avec l'utilisateur `agrumes` et le mot de passe affiché. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
+Ouvrez l'URL affichée, puis connectez-vous avec l'utilisateur et le mot de passe de `config.toml`. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
 
 > Le port est scanné automatiquement : si `8080` est déjà utilisé sur le NAS, l'application bascule sur `8081`, `8082`, etc. L'URL exacte est toujours affichée en console.
 
 ### Premier usage
 
-1. Connectez-vous avec le mot de passe affiché dans la console.
+1. Connectez-vous avec les identifiants de `config.toml`.
 2. Choisissez le dossier à analyser (navigateur de dossiers intégré ou chemin direct).
 3. Si le dossier contient des séries, ajoutez-le dans **Dossiers de séries**.
 4. Lancez l'analyse, triez par gain potentiel, sélectionnez des fichiers ou des packs (toute la ligne est cliquable).
-5. Cliquez sur **Test** pour vérifier la qualité sur un extrait.
+5. Cliquez sur **Test** pour vérifier la qualité sur un extrait, ou **Suppr.** pour supprimer directement un fichier/pack inutile.
 6. Ajustez les réglages, la planification, le devenir des originaux et la destination.
 7. Lancez la compression, suivez la progression et le journal. Vous pouvez fermer le navigateur : le travail continue et une bannière reste visible au retour.
 
@@ -154,6 +157,8 @@ sudo journalctl -u presse-agrumes -f
 
 Adaptez `User`, `Group`, `WorkingDirectory`, `PA_ALLOWED_ROOTS` et les chemins ffmpeg. L'utilisateur du service doit pouvoir **lire** les médias et **écrire** dans les dossiers de sortie / corbeille.
 
+Créez `/opt/presse-agrumes/config.toml` depuis `config.example.toml`, renseignez le mot de passe et faites `chmod 600 config.toml` (utilisateur du service). Le fichier est lu automatiquement depuis le `WorkingDirectory`. Redémarrez après toute modification : `sudo systemctl restart presse-agrumes`.
+
 ### Reverse proxy / HTTPS
 
 Placez Nginx, Caddy ou Traefik devant l'application si vous voulez TLS. Exemple Caddy :
@@ -171,27 +176,49 @@ Si vous utilisez SSE derrière un proxy, désactivez le buffering pour `/api/job
 
 ## Configuration
 
-Toutes les options sont des variables d'environnement. Un exemple complet est fourni dans [`deploy/presse-agrumes.env.example`](deploy/presse-agrumes.env.example).
+La configuration recommandée est le fichier **`config.toml`** à la racine du projet (ignoré par git). Copiez [`config.example.toml`](config.example.toml) puis adaptez-le :
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[paths]
+data_dir = "./data"
+allowed_roots = ["/mnt/media", "/srv/media"]
+
+[auth]
+user = "agrumes"
+password = "votre-mot-de-passe"
+disabled = false
+
+[ffmpeg]
+# ffmpeg = "/usr/bin/ffmpeg"
+# ffprobe = "/usr/bin/ffprobe"
+```
+
+Sécurisez le fichier :
+
+```bash
+chmod 600 config.toml
+```
+
+Les variables d'environnement restent supportées et **ont priorité** sur le fichier (utile en conteneur/systemd) :
 
 | Variable | Défaut | Description |
 | --- | --- | --- |
-| `PA_HOST` | `0.0.0.0` | Adresse d'écoute. |
-| `PA_PORT` | `8080` | Port préféré. Un port libre est cherché automatiquement si occupé. |
-| `PA_DATA_DIR` | `<projet>/data` | Scans, jobs, tests, benchmarks. |
-| `PA_ALLOWED_ROOTS` | `/` | Racines accessibles, séparées par `:`. **À restreindre** (`/mnt/media:/srv/media`). |
-| `PA_AUTH_USER` | `agrumes` | Utilisateur HTTP Basic. |
-| `PA_AUTH_PASSWORD` | généré | Mot de passe fixe optionnel. S'il est absent, un mot de passe temporaire est généré et affiché à chaque lancement. |
-| `PA_AUTH_DISABLED` | `0` | `1` pour désactiver l'authentification (développement local uniquement). |
-| `FFMPEG_BIN` | auto | Chemin absolu vers ffmpeg (utile en systemd). |
-| `FFPROBE_BIN` | auto | Chemin absolu vers ffprobe. |
+| `PA_CONFIG_FILE` | `<projet>/config.toml` | Chemin du fichier TOML. |
+| `PA_HOST` | fichier / `0.0.0.0` | Adresse d'écoute. |
+| `PA_PORT` | fichier / `8080` | Port préféré. Un port libre est cherché si occupé. |
+| `PA_DATA_DIR` | fichier / `<projet>/data` | Scans, jobs, tests, benchmarks. |
+| `PA_ALLOWED_ROOTS` | fichier / `/` | Racines accessibles, séparées par `:`. |
+| `PA_AUTH_USER` | fichier / `agrumes` | Utilisateur HTTP Basic. |
+| `PA_AUTH_PASSWORD` | fichier / généré | Mot de passe fixe. Prioritaire sur le fichier. |
+| `PA_AUTH_DISABLED` | fichier / `0` | `1` pour désactiver l'authentification (dev uniquement). |
+| `FFMPEG_BIN` | fichier / auto | Chemin absolu vers ffmpeg. |
+| `FFPROBE_BIN` | fichier / auto | Chemin absolu vers ffprobe. |
 
-Exemple avec mot de passe fixe (recommandé pour un service systemd stable) :
-
-```bash
-PA_ALLOWED_ROOTS=/mnt/media:/srv/media \
-PA_AUTH_USER=agrumes PA_AUTH_PASSWORD='un-mot-de-passe-solide' \
-./run.sh
-```
+Priorité : **variables d'environnement > config.toml > valeurs par défaut**. Si aucun mot de passe n'est fourni, un mot de passe temporaire est généré et affiché en console.
 
 ## Guide d'utilisation
 
@@ -209,8 +236,10 @@ PA_AUTH_USER=agrumes PA_AUTH_PASSWORD='un-mot-de-passe-solide' \
 
 - Résumé : nombre d'éléments, taille totale, gain potentiel, taille estimée après compression, durée.
 - Tri par gain, gain %, taille, durée ou nom ; recherche plein texte ; filtres séries / fichiers / meilleurs gains / déjà AV1.
-- Cochez des fichiers ou des packs entiers. Les fichiers déjà AV1 sont désactivés : ils ne sont jamais recompressés.
-- Les erreurs (fichier illisible, ffprobe en échec) sont listées à part et ne bloquent pas le scan.
+- **Limite d'affichage** : 10, 20, 30, 50, 100 ou tout. Le bouton **Sélectionner affichés** sélectionne uniquement les N éléments visibles ; **Tout sélectionner** prend tous les éléments filtrés.
+- Cochez des fichiers ou des packs entiers. Toute la ligne est cliquable, la case à cocher reste utilisable. Les fichiers déjà AV1 sont désactivés pour la compression.
+- **Suppr.** supprime directement un fichier ou un pack (confirmation obligatoire, action irréversible sans corbeille). Pratique pour éliminer les fichiers inutiles avant compression.
+- Les erreurs (fichier vide, corrompu, illisible) sont listées à part ; elles peuvent aussi être supprimées directement et ne bloquent pas le scan.
 
 ### 3. Réglages AV1
 
@@ -244,7 +273,10 @@ Presets rapides : **Rapide** (preset 10, CRF 34), **Équilibré** (8/32), **Qual
 
 - Le benchmark encode 4 s de mire 1080p avec l'encodeur/preset choisi et mesure les images/seconde réelles.
 - L'ETA combine la durée vidéo, le benchmark, le pourcentage de threads alloué, le nombre d'encodages simultanés et une marge de 12 %.
-- Sans benchmark, une table indicative par CPU est utilisée : le badge **indicatif** le signale.
+- Sans benchmark pour le preset courant, une table indicative est utilisée : le badge **indicatif** le signale. Le bouton **Calibrer (~5 s)** mesure immédiatement le preset courant.
+- **Au lancement d'une compression**, si le preset n'a pas encore de mesure, un benchmark court est exécuté automatiquement avant l'encodage. L'ETA initiale du panneau de suivi est donc basée sur le matériel réel.
+- **Pendant la compression**, l'ETA globale est recalculée à partir de la vitesse réelle (`speed` ffmpeg), pas seulement de l'estimation initiale.
+- L'ETA affichée dans les résultats avant lancement est une **estimation initiale**, affinée au démarrage. Elle ne peut pas connaître la complexité exacte de chaque vidéo.
 - Les processus sont lancés avec `nice 10` pour laisser le NAS réactif. Le pourcentage agit sur le nombre de threads (`lp` pour SVT-AV1), pas sur une isolation stricte du CPU.
 - Le benchmark est accessible depuis **Matériel** et mis en cache par machine.
 
@@ -265,7 +297,7 @@ Le gain affiché est calculé sur le **débit** (taille/durée) entre l'extrait 
 - La sortie est écrite dans un fichier temporaire `.pa-tmp-*`, validée par ffprobe, puis renommée atomiquement.
 - La progression affiche le fichier courant, le pourcentage, la vitesse, les fps, l'ETA, le journal ffmpeg et le résultat par fichier.
 - **Pause** : le bouton met le job en pause et suspend les processus ffmpeg (`SIGSTOP`). Aucun fichier temporaire n'est perdu. **Reprendre** continue exactement au même point.
-- Fermer le navigateur n'arrête pas le job. Au retour, une **bannière en haut de page** réaffiche la tâche active, sa progression, son ETA, sa vitesse et les boutons pause/reprise. Le panneau de suivi est également rouvert automatiquement.
+- Fermer le navigateur n'arrête pas le job. Au retour, une **bannière en haut de page** réaffiche la tâche active, sa progression, son ETA, sa vitesse et les boutons pause/reprise. Le bouton **Suivi** de cette bannière ouvre le panneau détaillé (progression, ETA, pause, journal) et scrolle jusqu'à lui.
 - L'historique des analyses permet de reprendre un scan sans rescanner le NAS.
 
 ### 8. Planification horaire
@@ -291,10 +323,11 @@ Le facteur de gain dépend du codec source (H.264, HEVC, MPEG-2, etc.), du bits 
 ## Sécurité et permissions
 
 - **Réseau local uniquement** : l'application peut lire, déplacer et supprimer des fichiers. N'exposez jamais le port directement sur Internet.
-- **Mot de passe au démarrage** : sans `PA_AUTH_PASSWORD`, un mot de passe temporaire est généré et affiché en console. Il change à chaque redémarrage. Pour un mot de passe stable, définissez `PA_AUTH_PASSWORD` (systemd).
+- **Mot de passe** : défini dans `config.toml` (recommandé, `chmod 600`) ou via `PA_AUTH_PASSWORD`. Si aucun n'est fourni, un mot de passe temporaire est généré et affiché en console ; il change à chaque redémarrage.
 - `PA_ALLOWED_ROOTS` limite les chemins accessibles. Le navigateur de dossiers ne peut pas sortir de ces racines.
-- `PA_AUTH_USER` / `PA_AUTH_PASSWORD` personnalisent HTTP Basic (utilisateur et mot de passe fixe). Pour du TLS, utilisez un reverse proxy.
+- `PA_AUTH_USER` / `PA_AUTH_PASSWORD` personnalisent HTTP Basic (l'environnement est prioritaire sur le fichier). Pour du TLS, utilisez un reverse proxy.
 - `PA_AUTH_DISABLED=1` ne doit servir qu'au développement local : l'interface est alors accessible sans mot de passe.
+- **Suppression directe** : le bouton **Suppr.** supprime définitivement le fichier/pack avec confirmation. Aucune corbeille n'est utilisée pour cette action.
 - Les commandes ffmpeg sont construites sans shell, avec des listes d'arguments. Aucun nom de fichier n'est interprété par un shell.
 - Les liens symboliques ne sont pas suivis pendant le scan (évite les boucles et les sorties de racine).
 - L'original n'est jamais supprimé avant la validation ffprobe de la sortie.
@@ -328,6 +361,7 @@ presse-agrumes/
 ├── deploy/                  # unité systemd + exemple d'environnement
 ├── scripts/dev.sh           # backend reload + Vite
 ├── scripts/release.sh       # vérifications + tag git de release
+├── config.example.toml      # modèle de configuration (à copier en config.toml)
 ├── analyze_videos.py        # script CLI historique (référence)
 ├── run.sh                   # démarrage clé en main
 └── data/                    # généré, ignoré par git
@@ -394,28 +428,35 @@ Le script `scripts/release.sh X.Y.Z` vérifie la cohérence, lance les tests et 
 build, puis crée le tag annoté. Voir [`docs/RELEASES.md`](docs/RELEASES.md).
 
 Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
-planification, bannière active, erreurs enrichies).
+planification, bannière active, erreurs enrichies), `v0.3.0` (mot de passe en
+fichier, suppression directe, ETA recalibrée, limites 10/20/30/50/Tout).
 
 ## Dépannage
 
 ### « Où est le mot de passe ? »
 
-Il est affiché **dans la console au démarrage** :
+Avec `config.toml`, il est dans la section `[auth]` :
+
+```bash
+grep -A3 '^\[auth\]' config.toml
+```
+
+Sans fichier de configuration, il est affiché **dans la console au démarrage** :
 
 ```text
 Utilisateur  : agrumes
 Mot de passe : 8beafed746df… (temporaire, régénéré à chaque démarrage)
 ```
 
-Sous systemd :
+Sous systemd, le mot de passe du fichier est dans `config.toml` ; le mot de passe
+temporaire éventuel est dans le journal :
 
 ```bash
 sudo journalctl -u presse-agrumes -n 50 | grep -A2 "Mot de passe"
 ```
 
-Pour un mot de passe stable, définissez `PA_AUTH_PASSWORD` dans l'environnement
-du service. Si vous avez perdu le mot de passe temporaire, redémarrez le service :
-un nouveau sera généré et affiché.
+Si vous avez perdu le mot de passe temporaire, redémarrez le service : un nouveau
+sera généré. Si vous utilisez `config.toml`, modifiez le fichier puis redémarrez.
 
 ### Le port 8080 est déjà utilisé
 

@@ -57,15 +57,16 @@
 
 ### `config.py`
 
-Résout `PA_*`, les dossiers de données, et cherche ffmpeg/ffprobe dans l'ordre :
-variable d'environnement explicite, `PATH`, `~/.local/bin`, `/usr/local/bin`,
-`/usr/bin`, `/opt/ffmpeg/bin`. Le fallback `~/.local/bin` sert au build statique
-de développement.
+Charge `config.toml` (chemin `PA_CONFIG_FILE` ou `<projet>/config.toml`) :
+serveur, chemins, authentification, ffmpeg. Les variables d'environnement
+`PA_*` ont priorité. Si `[auth] password` est absent, un mot de passe temporaire
+est généré ; `PA_AUTH_DISABLED=1` désactive l'authentification pour le
+développement. Le fichier est ignoré par git (`config.example.toml` sert de
+modèle).
 
-L'authentification HTTP Basic est **active par défaut**. Si `PA_AUTH_PASSWORD`
-n'est pas fourni, `config.py` génère un mot de passe temporaire
-(`secrets.token_hex`) affiché par `__main__.py`. `PA_AUTH_DISABLED=1` désactive
-l'authentification pour le développement.
+Cherche ffmpeg/ffprobe dans l'ordre : variable d'environnement, fichier TOML,
+`PATH`, `~/.local/bin`, `/usr/local/bin`, `/usr/bin`, `/opt/ffmpeg/bin`. Le
+fallback `~/.local/bin` sert au build statique de développement.
 
 ### `network.py`
 
@@ -132,10 +133,16 @@ l'authentification pour le développement.
 - **Préflight** (`plan_compression`) : résolution des items, chemins de sortie,
   conflits, permissions, espace disque par fichier et cumulé par dossier,
   estimation matérielle. Utilisé par `/api/preflight` et par la compression.
+- **Suppression directe** (`delete_scan_items`) : items/packs ou chemins en
+  erreur, vérification que le chemin reste sous la racine du scan, refus des
+  liens symboliques, suppression puis reconstruction des items/summary.
 - **Compression** : pool de `concurrency` workers, threads répartis. Sortie
   temporaire `.pa-tmp-<token>.ext`, progression parsée (`out_time_us`, `speed`,
   `fps`), validation ffprobe, `os.replace`, puis traitement de l'original.
   Annulation : `terminate()` des processus, arrêt du pool, statut `cancelled`.
+- **Calibration ETA** : au lancement, si aucun benchmark n'existe pour le preset
+  courant, un benchmark court (1 s) est exécuté ; l'ETA globale est ensuite
+  recalculée avec la vitesse réelle pendant l'encodage.
 - **Pause** : `pause("manual"|"schedule")` ajoute une raison, passe le statut à
   `paused` et envoie `SIGSTOP` aux ffmpeg ; `resume()` retire la raison et
   envoie `SIGCONT` s'il n'en reste aucune. `wait_if_paused()` bloque les workers
@@ -177,7 +184,11 @@ Les jobs sont persistés à chaque étape de compression (pas à chaque tick SSE
   destination, originaux, pourcentage de ressources, concurrence, planification.
 - **Sélection** : `Set<string>` d'IDs d'items. Un pack sélectionné sélectionne
   tous ses épisodes côté serveur. La ligne entière est cliquable, la case à
-  cocher reste indépendante.
+  cocher reste indépendante. Le nombre d'éléments affichés est limité à
+  10/20/30/50/100/tout ; « Sélectionner affichés » ne prend que la page visible.
+- **Suppression** : bouton **Suppr.** par ligne (confirmation), ou suppression
+  d'un fichier en erreur ; l'API renvoie vers `/api/scans/{id}/delete` et le scan
+  est rechargé après reconstruction.
 
 ### Pages
 

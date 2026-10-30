@@ -79,3 +79,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | --- | --- | --- |
 | `v0.1.0` | 2026-10-30 | Analyse, compression, test qualité, interface React, documentation. |
 | `v0.2.0` | 2026-10-30 | Mot de passe généré, scan de ports, pause/reprise, planification, bannière des tâches actives, sélection par ligne, erreurs enrichies. |
+| `v0.3.0` | 2026-10-30 | Fichier `config.toml`, suppression directe, limites 10/20/30/50/Tout, calibration ETA automatique. |

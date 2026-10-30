@@ -444,3 +444,51 @@ def test_manual_pause_resume_real_compression(client, media_root: Path):
     final = wait_job(client, job_id)
     assert final["status"] == "done", final
     assert (media_root / "f-pause.paused.mkv").exists()
+
+
+def test_delete_scan_item_and_error_file(client, media_root: Path):
+    normal = media_root / "z-delete-direct.mp4"
+    empty = media_root / "z-delete-empty.mp4"
+    make_video(normal, duration=2, frequency=1300)
+    empty.write_bytes(b"")
+    empty.chmod(0o644)
+
+    scan = scan_root(client, media_root)
+    item = find_item(scan, normal.name)
+    empty_error = next(
+        (entry for entry in scan["errors"] if entry.get("path") == str(empty)),
+        None,
+    )
+    assert empty_error is not None
+    assert empty_error.get("error_code") == "empty_file"
+
+    response = client.post(
+        f"/api/scans/{scan['id']}/delete",
+        json={"item_ids": [item["id"]], "paths": [str(empty)]},
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["deleted_count"] == 2, result
+    assert not normal.exists()
+    assert not empty.exists()
+
+    updated = client.get(f"/api/scans/{scan['id']}").json()
+    names = {entry.get("filename") for entry in updated["items"]}
+    assert normal.name not in names
+    assert all(entry.get("path") != str(empty) for entry in updated["errors"])
+    assert updated["summary"]["items_count"] == scan["summary"]["items_count"] - 1
+
+
+def test_delete_scan_rejects_unknown_path(client, media_root: Path):
+    target = media_root / "z-keep.mp4"
+    make_video(target, duration=2, frequency=1400)
+    scan = scan_root(client, media_root)
+    response = client.post(
+        f"/api/scans/{scan['id']}/delete",
+        json={"paths": ["/etc/passwd", str(target) + ".absent"]},
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["deleted_count"] == 0
+    assert result["warnings"]
+    assert target.exists()
