@@ -7,7 +7,7 @@
 #
 # Build local :
 #   docker build -t presse-agrumes:local .
-#   docker run --rm -p 8080:8080 \
+#   docker run --rm -p 8473:8473 \
 #     -v /mnt/media:/media \
 #     -v presse-agrumes:/data \
 #     presse-agrumes:local
@@ -28,7 +28,7 @@ RUN npm run build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 
-ARG APP_VERSION=0.7.0
+ARG APP_VERSION=0.7.1
 LABEL org.opencontainers.image.title="Presse-Agrumes" \
       org.opencontainers.image.description="Analyse et compression AV1 de bibliothèques vidéo" \
       org.opencontainers.image.source="https://github.com/Cafe-Soluble/presse-agrumes" \
@@ -64,8 +64,8 @@ RUN groupadd --gid 1000 app \
 
 USER app
 
-# Le port réel vient de [server] port dans /data/config.toml (8080 par défaut).
-EXPOSE 8080
+# Le port réel vient de [server] port dans /data/config.toml (8473 par défaut).
+EXPOSE 8473
 VOLUME ["/data"]
 STOPSIGNAL SIGTERM
 

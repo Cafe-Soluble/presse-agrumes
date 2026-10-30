@@ -37,7 +37,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
 [server]
 host = "0.0.0.0"
-port = 8080
+port = 8473
 
 [paths]
 data_dir = "/data"

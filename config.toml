@@ -14,9 +14,9 @@ host = "0.0.0.0"
 
 # Port interne de l'application.
 # En Docker, le mapping `ports:` de Compose doit utiliser ce port côté
-# conteneur (exemple : "8080:8080" si port = 8080).
+# conteneur (exemple : "8473:8473" si port = 8473).
 # S'il est occupé, l'application cherche le suivant et affiche le port réel.
-port = 8080
+port = 8473
 
 [paths]
 # Dossier des scans, jobs, tests et benchmarks.

@@ -1,6 +1,6 @@
 """Détection de ports libres et d'adresses IP locales.
 
-Utilisé au démarrage pour éviter un conflit si le port préféré (8080 par
+Utilisé au démarrage pour éviter un conflit si le port préféré (8473 par
 défaut) est déjà occupé par une autre application du NAS.
 """
 
@@ -30,7 +30,7 @@ def find_available_port(
 ) -> int:
     """Renvoie le premier port libre à partir de `preferred`.
 
-    Le scan est séquentiel (8080, 8081, …) pour rester prévisible.
+    Le scan est séquentiel (8473, 8474, …) pour rester prévisible.
     """
     for offset in range(max_tries):
         port = preferred + offset

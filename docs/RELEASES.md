@@ -86,3 +86,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.5.0` | 2026-10-30 | Image Docker multi-arch GHCR, docker-compose, CI, endpoint `/healthz`, documentation Docker. |
 | `v0.6.0` | 2026-10-30 | Installation Docker en une commande, config auto-générée dans `/data`, mot de passe aléatoire dans les logs, smoke test CI. |
 | `v0.7.0` | 2026-10-31 | Assistant de premier démarrage (choix du dossier média), `/api/setup`, racines Docker élargies, miroir Docker Hub optionnel. |
+| `v0.7.1` | 2026-10-31 | Port par défaut 8473 au lieu de 8080 (native, Docker, Compose), scan vers 8474/8475, documentation et smoke CI mis à jour. |

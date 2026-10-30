@@ -30,7 +30,7 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 
 - **Analyse récursive** d'un dossier avec progression SSE en temps réel, ETA, annulation et reprise après erreur.
 - **Accès protégé au démarrage** : un mot de passe temporaire est généré et affiché dans la console ; HTTP Basic protège toute l'interface.
-- **Scan de ports au lancement** : si 8080 est occupé, l'application trouve automatiquement le port libre suivant et affiche l'URL réelle.
+- **Scan de ports au lancement** : si 8473 est occupé, l'application trouve automatiquement le port libre suivant et affiche l'URL réelle.
 - **Détection des bons candidats** : codec, bitrate, résolution, durée, HDR, 10 bits, bits par pixel, gain estimé de façon volontairement pessimiste.
 - **Séries regroupées** : un dossier marqué « séries » devient une seule ligne par saison (ou par série), avec le détail des épisodes à la demande. Aucune heuristique imposée : c'est vous qui indiquez les dossiers de séries.
 - **Tri, recherche, filtres et sélection** par fichier ou par pack complet — en cliquant sur la ligne entière ou sur la case à cocher.
@@ -102,9 +102,9 @@ chmod 600 config.toml
 Au démarrage, la console affiche :
 
 ```text
-Port               : 8080  (ou 8081 si 8080 est occupé)
+Port               : 8473  (ou 8474 si 8473 est occupé)
 Adresse(s) locale(s) :
-  http://192.168.1.50:8080
+  http://192.168.1.50:8473
 Authentification   : HTTP Basic
 Utilisateur        : agrumes
 Mot de passe       : défini dans /opt/presse-agrumes/config.toml
@@ -112,7 +112,7 @@ Mot de passe       : défini dans /opt/presse-agrumes/config.toml
 
 Ouvrez l'URL affichée, puis connectez-vous avec les identifiants de `config.toml`. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
 
-> Le port est scanné automatiquement : si `8080` est déjà utilisé sur le NAS, l'application bascule sur `8081`, `8082`, etc. L'URL exacte est toujours affichée en console.
+> Le port est scanné automatiquement : si `8473` est déjà utilisé sur le NAS, l'application bascule sur `8474`, `8475`, etc. L'URL exacte est toujours affichée en console.
 
 ### Premier usage
 
@@ -155,16 +155,16 @@ démarrage.
 ```bash
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
-  -p 8080:8080 \
+  -p 8473:8473 \
   -v /mnt/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 
 # Récupérer le mot de passe généré au premier démarrage
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
 
-Puis ouvrez `http://<ip-du-nas>:8080` avec l'utilisateur `agrumes` et le mot de
+Puis ouvrez `http://<ip-du-nas>:8473` avec l'utilisateur `agrumes` et le mot de
 passe affiché.
 
 - La configuration est créée dans le volume `/data` (`config.toml`), avec
@@ -218,7 +218,7 @@ Placez Nginx, Caddy ou Traefik devant l'application si vous voulez TLS. Exemple 
 
 ```caddyfile
 agrumes.mondomaine.local {
-  reverse_proxy 127.0.0.1:8080
+  reverse_proxy 127.0.0.1:8473
   basic_auth {
     agrumes $2a$14$...
   }
@@ -240,7 +240,7 @@ chmod 600 config.toml
 ```toml
 [server]
 host = "0.0.0.0"
-port = 8080
+port = 8473
 
 [paths]
 data_dir = "./data"
@@ -422,7 +422,7 @@ presse-agrumes/
 
 ## API
 
-L'API REST est documentée automatiquement sur [`/docs`](http://localhost:8080/docs) (Swagger UI) et dans [`docs/API.md`](docs/API.md). Les routes principales :
+L'API REST est documentée automatiquement sur [`/docs`](http://localhost:8473/docs) (Swagger UI) et dans [`docs/API.md`](docs/API.md). Les routes principales :
 
 - `POST /api/scans` puis `GET /api/jobs/{id}/events` (SSE) ;
 - `GET /api/scans/{id}` ;
@@ -436,7 +436,7 @@ L'API REST est documentée automatiquement sur [`/docs`](http://localhost:8080/d
 Exemple de scan :
 
 ```bash
-curl -X POST http://127.0.0.1:8080/api/scans \
+curl -X POST http://127.0.0.1:8473/api/scans \
   -H 'Content-Type: application/json' \
   -d '{"root":"/mnt/media","options":{"series_roots":["/mnt/media/Series"]}}'
 ```
@@ -487,7 +487,7 @@ suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
 fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
 lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une
 commande, configuration auto-générée), `v0.7.0` (assistant de premier
-démarrage, racines Docker élargies).
+démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473).
 
 ## Dépannage
 
@@ -510,10 +510,10 @@ sudo chmod 600 /opt/presse-agrumes/config.toml
 sudo systemctl restart presse-agrumes
 ```
 
-### Le port 8080 est déjà utilisé
+### Le port 8473 est déjà utilisé
 
 C'est prévu : l'application scanne les ports suivants et affiche celui qu'elle a
-choisi (`8081`, `8082`, …). Pour imposer un port, modifiez `port` dans `config.toml` puis utilisez
+choisi (`8474`, `8475`, …). Pour imposer un port, modifiez `port` dans `config.toml` puis utilisez
 `--strict-port` pour échouer en cas de conflit :
 
 ```toml

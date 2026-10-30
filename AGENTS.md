@@ -207,7 +207,7 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
     démarrage et affiché en console. Ne jamais logger le mot de passe côté
     requête, ne pas l'exposer dans `/api/config`. `[auth] disabled = true` est
     réservé au développement/tests.
-12. **Port** : le port préféré est scanné ; ne pas coder 8080 en dur dans les
+12. **Port** : le port préféré est scanné ; ne pas coder 8473 en dur dans les
     URLs du frontend (utiliser des chemins relatifs).
 13. **Pause** : les ffmpeg sont suspendus par `SIGSTOP` ; ne jamais supprimer un
     fichier temporaire pendant une pause (le job doit pouvoir reprendre).
@@ -290,7 +290,7 @@ locale sans root.
 - **Mot de passe généré** : il est créé à l'import de `config.py`, affiché par
   `__main__.py`, puis copié dans l'environnement pour que le sous-processus
   `--reload` utilise le même. Ne pas déplacer cette logique dans `app.py`.
-- **Deux instances** : le scan de port peut lancer une deuxième instance si 8080
+- **Deux instances** : le scan de port peut lancer une deuxième instance si 8473
   est occupé par un autre Presse-Agrumes. Elles partagent `data/` ; éviter ce cas
   sur un NAS (utiliser `--strict-port` ou arrêter l'ancienne).
 - **Planification** : heures locales du serveur, précision de 15 s ; une plage

@@ -5,7 +5,7 @@ Lancement :
     # ou
     ./run.sh
 
-L'interface est servie sur http://<ip-du-serveur>:8080 (0.0.0.0 par défaut).
+L'interface est servie sur http://<ip-du-serveur>:8473 (0.0.0.0 par défaut).
 """
 
 from __future__ import annotations

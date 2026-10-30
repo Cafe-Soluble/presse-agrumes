@@ -1,6 +1,6 @@
 # API HTTP
 
-Base : `http://<serveur>:8080`. Documentation interactive : `/docs` (Swagger UI),
+Base : `http://<serveur>:8473`. Documentation interactive : `/docs` (Swagger UI),
 schéma OpenAPI : `/openapi.json`.
 
 Toutes les réponses sont en JSON, sauf les fichiers de test et les flux SSE.
@@ -13,7 +13,7 @@ Aucune variable d'environnement n'est utilisée. Toutes les routes (y compris
 `/api/health`) exigent HTTP Basic :
 
 ```bash
-curl -u agrumes:motdepasse http://127.0.0.1:8080/api/health
+curl -u agrumes:motdepasse http://127.0.0.1:8473/api/health
 ```
 
 
@@ -111,7 +111,7 @@ polling.
 Exemple SSE :
 
 ```bash
-curl -N http://127.0.0.1:8080/api/jobs/<id>/events
+curl -N http://127.0.0.1:8473/api/jobs/<id>/events
 ```
 
 Le flux se termine quand le statut est `done`, `error`, `cancelled` ou
@@ -238,7 +238,7 @@ automatiquement.
 Exemple :
 
 ```bash
-curl -X POST http://127.0.0.1:8080/api/compressions \
+curl -X POST http://127.0.0.1:8473/api/compressions \
   -H 'Content-Type: application/json' \
   -d '{"scan_id":"…","item_ids":["pack:…"],"settings":{"preset":8,"crf":32},"output":{"mode":"same_dir_new_name","suffix":"av1"},"originals":{"mode":"keep"},"resource_percent":70,"concurrency":1}'
 ```
@@ -309,7 +309,7 @@ et l'AV1.
 ```python
 import httpx, time
 
-base = "http://127.0.0.1:8080"
+base = "http://127.0.0.1:8473"
 client = httpx.Client(timeout=120)
 
 job = client.post(f"{base}/api/scans", json={"root": "/mnt/media"}).json()

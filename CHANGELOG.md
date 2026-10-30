@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.1] — 2026-10-31
+
+### Modifié
+
+- **Port par défaut 8473** au lieu de 8080, en natif comme en Docker/Compose.
+  8080 est très souvent occupé (proxys, autres applications), ce qui provoquait
+  des conflits ou des bascules de port. Le scan automatique continue vers 8474,
+  8475… en cas de conflit.
+- `Dockerfile` : `EXPOSE 8473`, healthcheck inchangé (lit le port réel dans
+  `/data/config.toml`).
+- Documentation, exemples `curl`/`docker run`, proxy Vite et smoke test CI
+  alignés sur 8473.
+
+> Les installations existantes conservent le port de leur `config.toml` ; seule
+> une configuration générée ou le fichier du dépôt change.
+
 ## [0.7.0] — 2026-10-31
 
 ### Ajouté

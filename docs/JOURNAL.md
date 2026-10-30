@@ -293,3 +293,16 @@
   `/volume1`, `/volume2` ; documentation mise à jour.
 - **Tests** : 37 pytest, typecheck, build, Playwright OK.
 - **Release** : v0.7.0, image multi-arch GHCR (`0.7.0`, `0.7`, `latest`).
+
+## 2026-10-31 — v0.7.1 : port par défaut 8473
+
+- **Demande** : 8080 est trop souvent occupé ; choisir un port par défaut moins
+  courant.
+- **Décision** : 8473 par défaut (natif, Docker, Compose), scan inchangé vers
+  8474/8475 en cas de conflit. Vérifié libre dans `/etc/services`.
+- **Fichiers** : `config.py`, `config.toml`, `network.py`, `app.py`,
+  `docker/entrypoint.sh`, `Dockerfile` (`EXPOSE`), `docker-compose.yml`,
+  `scripts/dev.sh`, `frontend/vite.config.ts`, workflow smoke, docs.
+- **Migration** : les installations existantes gardent le port de leur
+  `config.toml` ; aucune action pour elles.
+- **Tests** : pytest, typecheck, build, Playwright OK.

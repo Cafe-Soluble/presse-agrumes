@@ -209,3 +209,17 @@ explicitement présentée comme initiale.
 
 **Conséquences** : démarrage légèrement plus long lors de la première
 compression d'un preset, mais ETA du panneau de suivi beaucoup plus fiable.
+
+## ADR-018 — Port par défaut 8473
+
+**Contexte** : 8080 est très souvent occupé (autres applications, proxys,
+outils de développement) et provoque des conflits ou des bascules de port
+difficiles à suivre.
+
+**Décision** : le port par défaut devient **8473** (native et Docker), avec le
+même scan automatique vers 8474, 8475… en cas de conflit. Les installations
+existantes conservent le port de leur `config.toml`.
+
+**Conséquences** : moins de collisions sur un NAS ; les URLs et les exemples
+de documentation utilisent 8473. `--strict-port` reste disponible pour échouer
+volontairement si le port est occupé.

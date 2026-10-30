@@ -16,10 +16,10 @@ services:
     # UID/GID qui possède les médias et le dossier ./data.
     # Sur Synology/Unraid, remplacez par votre UID utilisateur (id -u / id -g).
     user: "1000:1000"
-    # Le port conteneur (8080) doit correspondre à [server] port dans
+    # Le port conteneur (8473) doit correspondre à [server] port dans
     # ./data/config.toml. Le port hôte est celui du navigateur.
     ports:
-      - "8080:8080"
+      - "8473:8473"
     volumes:
       # Configuration générée + scans/jobs/tests/benchmarks.
       # Le mot de passe est dans ./data/config.toml, pas dans Compose.

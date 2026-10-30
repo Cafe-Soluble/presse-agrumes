@@ -4,7 +4,7 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 ghcr.io/cafe-soluble/presse-agrumes:0.6
 ```
 
@@ -22,10 +22,10 @@ préexistant :
 ```bash
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
-  -p 8080:8080 \
+  -p 8473:8473 \
   -v /mnt/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 ```
 
 Au premier démarrage, l'entrypoint crée automatiquement :
@@ -45,7 +45,7 @@ Récupérez le mot de passe :
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
 
-Puis ouvrez `http://<ip-du-nas>:8080`.
+Puis ouvrez `http://<ip-du-nas>:8473`.
 
 > Le mot de passe n'est affiché qu'à la première création. Il reste lisible dans
 > le volume `/data` (`config.toml`). Pour le changer, éditez ce fichier puis
@@ -59,10 +59,10 @@ sudo chown -R 1000:1000 /volume1/docker/presse-agrumes
 
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
-  -p 8080:8080 \
+  -p 8473:8473 \
   -v /mnt/media:/media \
   -v /volume1/docker/presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 ```
 
 Le fichier de configuration est alors
@@ -74,7 +74,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.7.0
+cafesoluble/presse-agrumes:0.7.1
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -133,7 +133,7 @@ Après le premier démarrage, éditez `config.toml` dans le volume `/data` :
 ```toml
 [server]
 host = "0.0.0.0"
-port = 8080
+port = 8473
 
 [paths]
 data_dir = "/data"
@@ -192,8 +192,8 @@ En résumé :
 
 Deux points de cohérence sont à surveiller :
 
-1. **Port** : si `[server] port = 8080`, le mapping doit être `"8080:8080"` (ou
-   `"9000:8080"` pour exposer 9000 sur l'hôte). Si tu changes le port dans
+1. **Port** : si `[server] port = 8473`, le mapping doit être `"8473:8473"` (ou
+   `"9000:8473"` pour exposer 9000 sur l'hôte). Si tu changes le port dans
    `config.toml`, change aussi le côté conteneur du mapping.
 2. **Chemins** : `allowed_roots` et `data_dir` sont des chemins **dans le
    conteneur**. L'entrypoint génère des chemins absolus :
@@ -289,7 +289,7 @@ docker compose up -d
 Pour une version stable, épinglez un tag précis plutôt que `latest` :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+image: ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 ```
 
 Les données et la configuration sont sur des volumes : un `pull` ne les efface
@@ -299,7 +299,7 @@ pas. Sauvegardez malgré tout `config.toml` et `data/` avant une mise à jour.
 
 ```bash
 docker build -t presse-agrumes:local .
-docker run --rm -p 8080:8080 \
+docker run --rm -p 8473:8473 \
   -v "$PWD/data:/data" \
   -v /mnt/media:/media \
   -v /etc/localtime:/etc/localtime:ro \
@@ -341,7 +341,7 @@ conteneur. Après le premier démarrage, il est modifiable sur l'hôte (volume
 ### Le port change
 
 Le port interne est celui de `config.toml`. Mettez à jour `ports:` en
-conséquence, ou gardez 8080.
+conséquence, ou gardez 8473.
 
 ### ARM64 et ffmpeg
 

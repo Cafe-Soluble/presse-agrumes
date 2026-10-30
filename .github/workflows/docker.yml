@@ -64,11 +64,11 @@ jobs:
       - name: Démarrer et vérifier /healthz
         run: |
           set -e
-          docker run -d --name pa-smoke -p 18080:8080 \
+          docker run -d --name pa-smoke -p 18473:8473 \
             -v pa-smoke-data:/data presse-agrumes:smoke
           ok=""
           for i in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:18080/healthz; then
+            if curl -fsS http://127.0.0.1:18473/healthz; then
               ok="1"
               break
             fi

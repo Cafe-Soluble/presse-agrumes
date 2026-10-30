@@ -68,7 +68,7 @@ la configuration de production.
 # Terminal 1 — backend avec reload (port/host lus dans config.toml)
 .venv/bin/python -m presse_agrumes --reload
 
-# Terminal 2 — Vite (proxy /api vers 8080)
+# Terminal 2 — Vite (proxy /api vers 8473)
 cd frontend
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
@@ -97,9 +97,9 @@ persistant au premier démarrage, avec un mot de passe aléatoire affiché dans 
 logs. Le volume `/data` contient aussi les scans/jobs.
 
 ```bash
-docker run -d --name presse-agrumes -p 8080:8080 \
+docker run -d --name presse-agrumes -p 8473:8473 \
   -v /mnt/media:/media -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
 docker logs presse-agrumes
 ```
 

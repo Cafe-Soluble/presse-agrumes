@@ -34,7 +34,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10
         tomllib = None  # type: ignore[assignment]
 
 APP_NAME = "Presse-Agrumes"
-VERSION = "0.7.0"
+VERSION = "0.7.1"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_FILE = BASE_DIR / "config.toml"
@@ -46,7 +46,7 @@ DEFAULT_PASSWORD_VALUES = {"changez-moi", "change-me", "password", "motdepasse"}
 
 # Valeurs par défaut (remplacées par _apply_config_file).
 HOST = "0.0.0.0"
-PORT = 8080
+PORT = 8473
 DATA_DIR = BASE_DIR / "data"
 SCANS_DIR = DATA_DIR / "scans"
 JOBS_DIR = DATA_DIR / "jobs"
@@ -123,7 +123,7 @@ def _apply_config_file() -> None:
 
     HOST = str(_cfg("server", "host", "0.0.0.0"))
     try:
-        PORT = int(_cfg("server", "port", 8080))
+        PORT = int(_cfg("server", "port", 8473))
     except (TypeError, ValueError) as exc:
         raise RuntimeError(f"Port invalide dans {CONFIG_FILE} : {exc}") from exc
     if not 0 < PORT < 65536:

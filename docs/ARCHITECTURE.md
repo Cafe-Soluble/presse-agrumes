@@ -38,7 +38,7 @@
 - **SPA servie par le backend** : pas de serveur Node en production. FastAPI
   sert `frontend/dist` (build versionné) et renvoie `index.html` pour les routes
   React (`/history`, `/hardware`). Vite est utilisé uniquement en développement,
-  avec un proxy `/api` vers `127.0.0.1:8080`.
+  avec un proxy `/api` vers `127.0.0.1:8473`.
 - **Aucune base de données** : les scans et jobs sont des JSON atomiques. Un
   NAS peut facilement inspecter/sauvegarder `data/`, et le volume reste faible
   (métadonnées, pas de vidéos).
@@ -51,7 +51,7 @@
 - **Sécurité locale** : `[paths] allowed_roots` + `guard_path`, pas de shell,
   authentification HTTP Basic avec mot de passe dans `config.toml`, liens
   symboliques non suivis.
-- **Port** : scan au démarrage pour éviter les conflits (8080 occupé → 8081).
+- **Port** : scan au démarrage pour éviter les conflits (8473 occupé → 8474).
 
 ## Backend
 
@@ -70,7 +70,7 @@ fallback `~/.local/bin` sert au build statique de développement.
 ### `network.py`
 
 - `is_port_available()` / `find_available_port()` : bind TCP séquentiel pour
-  trouver un port libre (8080 → 8081 → …).
+  trouver un port libre (8473 → 8474 → …).
 - `local_ip_addresses()` : adresse UDP principale, hostname et énumération
   `SIOCGIFADDR` des interfaces (inclut Tailscale/WireGuard).
 - Utilisé par `__main__.py` pour afficher le port et les URLs réelles.

@@ -23,6 +23,6 @@ BACKEND_PID=$!
 ) &
 FRONTEND_PID=$!
 
-echo "Backend  : http://127.0.0.1:8080"
+echo "Backend  : http://127.0.0.1:8473"
 echo "Frontend : http://127.0.0.1:5173 (proxy /api vers le backend)"
 wait "$BACKEND_PID" "$FRONTEND_PID"
