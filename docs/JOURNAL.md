@@ -262,3 +262,19 @@
   par la CI (Docker absent sur la VM).
 - **Reste** : commit + tag `v0.6.0` + push, surveiller le job smoke, puis
   éventuel miroir Docker Hub.
+
+## 2026-10-31 — v0.6.0 validé, miroir Docker Hub optionnel
+
+- **CI v0.6.0** : jobs `test`, `docker` (buildx amd64/arm64) et `smoke`
+  (build + démarrage + `/healthz` + `/data/config.toml`) tous verts.
+- **Image publique** : manifestes `0.6.0`, `0.6`, `latest` accessibles en
+  anonyme sur GHCR, index OCI avec `linux/amd64` et `linux/arm64`.
+- **Docker Hub** : ajout d'étapes optionnelles dans le workflow (login,
+  métadonnées, build/push) conditionnées à `DOCKERHUB_USERNAME` et
+  `DOCKERHUB_TOKEN`. Sans secrets, elles sont ignorées et GHCR reste seul canal.
+- **Contrainte de nom** : les identifiants Docker Hub n'acceptent que lettres
+  minuscules et chiffres ; `cafe-soluble` n'est pas un namespace valide. Le nom
+  court visé devient `cafesoluble/presse-agrumes`. Documentation corrigée
+  (README + `docs/DOCKER.md`, section « Nom court via Docker Hub »).
+- **Reste** : créer le compte Docker Hub `cafesoluble`, ajouter les deux secrets,
+  puis pousser un tag (`v0.6.1` ou `v0.7.0`) pour publier les tags de version.

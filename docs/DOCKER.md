@@ -10,7 +10,7 @@ ghcr.io/cafe-soluble/presse-agrumes:0.6
 
 GHCR est le canal principal : intégration native avec GitHub Actions, pas de
 limite de pull Docker Hub, image publique liée au dépôt. Un miroir Docker Hub
-pourra être ajouté plus tard pour la découvrabilité.
+peut être activé pour obtenir un nom plus court.
 
 Architectures : `linux/amd64` et `linux/arm64`.
 
@@ -62,6 +62,38 @@ docker run -d --name presse-agrumes \
 
 Le fichier de configuration est alors
 `/volume1/docker/presse-agrumes/config.toml`.
+
+## Nom court via Docker Hub (optionnel)
+
+L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
+commande la plus courte possible :
+
+```text
+cafesoluble/presse-agrumes:0.6.0
+```
+
+Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
+identifiant : `cafe-soluble` (avec tiret) n'est pas un namespace valide. Le
+namespace naturel du projet est donc `cafesoluble`.
+
+Le workflow `.github/workflows/docker.yml` publie ce miroir automatiquement si
+les secrets suivants sont définis (Settings → Secrets and variables → Actions) :
+
+| Secret | Valeur |
+| --- | --- |
+| `DOCKERHUB_USERNAME` | `cafesoluble` |
+| `DOCKERHUB_TOKEN` | token d'accès Docker Hub (Read & Write) |
+
+Sans ces secrets, les étapes Docker Hub sont ignorées : GHCR reste seul canal.
+Après leur ajout, pousse un nouveau tag (`v0.6.1`, `v0.7.0`…) pour publier les
+tags de version, puis :
+
+```bash
+docker pull cafesoluble/presse-agrumes:0.6.1
+```
+
+Les tags publiés sont `<version>`, `<major>.<minor>`, la branche, le SHA court
+et `latest`.
 
 ## Avec Docker Compose
 

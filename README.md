@@ -187,9 +187,12 @@ passe affiché.
 n'est plus nécessaire. Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md)
 (Synology, Unraid, OMV, permissions, VAAPI, fuseau horaire, dépannage).
 
-> Le nom court `docker pull cafe-soluble/presse-agrumes` nécessite un miroir
-> Docker Hub. L'image actuelle est sur GHCR ; un miroir Docker Hub peut être
-> ajouté avec un compte Docker Hub et un token dans GitHub Actions.
+> **Nom court (optionnel)** : `docker pull cafesoluble/presse-agrumes` nécessite
+> un miroir Docker Hub. Docker Hub n'accepte que lettres minuscules et chiffres
+> dans un identifiant, donc `cafe-soluble` n'est pas un namespace valide.
+> Le workflow publie le miroir automatiquement si les secrets
+> `DOCKERHUB_USERNAME` et `DOCKERHUB_TOKEN` existent. Voir
+> [`docs/DOCKER.md`](docs/DOCKER.md#nom-court-via-docker-hub-optionnel).
 
 ### Service systemd
 
