@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] — 2026-10-30
+
+- Suppression du dernier recours à une variable de shell (`PYTHON`) dans
+  `run.sh` : le lancement utilise `python3`, conformément à la configuration
+  uniquement par fichier.
+
 ## [0.4.0] — 2026-10-30
 
 ### Modifié — rupture de configuration

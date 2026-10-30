@@ -429,7 +429,8 @@ build, puis crée le tag annoté. Voir [`docs/RELEASES.md`](docs/RELEASES.md).
 Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
 planification, bannière active, erreurs enrichies), `v0.3.0` (config.toml,
 suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
-fichier, suppression des variables d'environnement).
+fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
+lancement).
 
 ## Dépannage
 

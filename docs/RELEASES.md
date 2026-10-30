@@ -81,3 +81,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.2.0` | 2026-10-30 | Mot de passe généré, scan de ports, pause/reprise, planification, bannière des tâches actives, sélection par ligne, erreurs enrichies. |
 | `v0.3.0` | 2026-10-30 | Fichier `config.toml`, suppression directe, limites 10/20/30/50/Tout, calibration ETA automatique. |
 | `v0.4.0` | 2026-10-30 | Configuration uniquement par `config.toml`, suppression des variables d'environnement, fichier versionné, systemd sans `Environment=`. |
+| `v0.4.1` | 2026-10-30 | Nettoyage du lancement (`run.sh`), plus aucune variable de shell pour la configuration. |

@@ -3,11 +3,9 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-PYTHON="${PYTHON:-python3}"
-
 if [ ! -d ".venv" ]; then
   echo "→ Création de l'environnement Python .venv"
-  "$PYTHON" -m venv .venv
+  python3 -m venv .venv
 fi
 
 if ! .venv/bin/python -c "import fastapi, uvicorn" >/dev/null 2>&1; then
