@@ -84,6 +84,43 @@ graphiquement. Il suffit alors de monter `config.toml`, `data/` et les médias,
 sans passer par git. Les chemins d'hôte et l'UID/GID diffèrent selon le NAS :
 voir les sections suivantes.
 
+## `config.toml` et `docker-compose.yml` : qui fait quoi ?
+
+Ce ne sont pas des doublons. Ils agissent à deux niveaux différents :
+
+| Réglage | `config.toml` | `docker-compose.yml` |
+| --- | --- | --- |
+| Mot de passe / utilisateur | **oui** | non |
+| `allowed_roots` (chemins autorisés) | **oui** | non |
+| Port interne de l'application | **oui** | mapping `hôte:conteneur` |
+| `data_dir` | **oui** (chemin dans le conteneur) | volume `./data:/app/data` |
+| Médias | chemins vus dans le conteneur | volumes hôte → conteneur |
+| UID/GID | non | **oui** (`user:`) |
+| VAAPI / `/dev/dri` | non | **oui** (`devices:`) |
+| Restart, healthcheck | non | **oui** |
+| ffmpeg/ffprobe | **oui** (`[ffmpeg]`) | non |
+
+En résumé :
+
+- **l'application** lit uniquement `config.toml` ;
+- **Docker** lit uniquement `docker-compose.yml` ;
+- Compose ne connaît pas ton mot de passe ni tes règles de sécurité ;
+- l'application ne sait pas comment Docker monte les volumes.
+
+Deux points de cohérence sont à surveiller :
+
+1. **Port** : si `[server] port = 8080`, le mapping doit être `"8080:8080"` (ou
+   `"9000:8080"` pour exposer 9000 sur l'hôte). Si tu changes le port dans
+   `config.toml`, change aussi le côté conteneur du mapping.
+2. **Chemins** : `allowed_roots` et `data_dir` sont des chemins **dans le
+   conteneur**. Les volumes Compose doivent exposer les médias à ces chemins.
+   Avec le fichier par défaut, `data_dir = "./data"` devient `/app/data`
+   (relatif à `/app/config.toml`), monté par `./data:/app/data`.
+
+C'est pour cette raison que le Compose monte le fichier de configuration en
+lecture seule : une seule source de vérité pour l'application, un seul endroit
+pour le mot de passe.
+
 ## Fonctionnement des volumes
 
 | Hôte | Conteneur | Rôle |

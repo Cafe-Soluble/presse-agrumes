@@ -12,18 +12,24 @@
 # Adresse d'écoute. 0.0.0.0 = accessible depuis le réseau local.
 host = "0.0.0.0"
 
-# Port préféré. S'il est occupé, l'application cherche automatiquement le
-# suivant et affiche le port réel dans la console.
+# Port interne de l'application.
+# En Docker, le mapping `ports:` de Compose doit utiliser ce port côté
+# conteneur (exemple : "8080:8080" si port = 8080).
+# S'il est occupé, l'application cherche le suivant et affiche le port réel.
 port = 8080
 
 [paths]
 # Dossier des scans, jobs, tests et benchmarks.
 # Relatif au dossier contenant ce fichier, ou chemin absolu.
+# En Docker, c'est un chemin DANS le conteneur : montez un volume dessus
+# (le Compose monte ./data sur /app/data, et "./data" devient /app/data).
 data_dir = "./data"
 
 # Dossiers que l'application a le droit de parcourir / modifier / supprimer.
 # IMPORTANT : en production, ne laissez pas "/" ! Liste tes partages média.
 # Exemple NAS : allowed_roots = ["/mnt/media", "/srv/media", "/volume1/videos"]
+# En Docker, ce sont les chemins vus DANS le conteneur : les volumes de
+# docker-compose.yml doivent exposer les médias à ces mêmes chemins.
 allowed_roots = ["/"]
 
 [auth]
@@ -48,6 +54,11 @@ disabled = false
 # =============================================================================
 # Notes Docker
 # =============================================================================
+# config.toml = configuration de l'APPLICATION (auth, port interne, chemins,
+# allowed_roots, ffmpeg). docker-compose.yml = configuration du CONTENEUR
+# (image, volumes, mapping de port, UID/GID, devices). Ce ne sont pas des
+# doublons : Compose ne connaît pas le mot de passe ni allowed_roots.
+#
 # Le fichier peut être monté dans le conteneur, par exemple :
 #   docker run ... -v /data/presse-agrumes/config.toml:/app/config.toml:ro ...
 # ou pointer ailleurs avec l'option de lancement :

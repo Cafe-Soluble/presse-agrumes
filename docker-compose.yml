@@ -18,14 +18,19 @@ services:
     # UID/GID qui possède les médias et le dossier ./data.
     # Sur Synology/Unraid, remplacez par votre UID utilisateur (id -u / id -g).
     user: "1000:1000"
+    # Le port côté conteneur (8080) doit correspondre à [server] port dans
+    # config.toml. Le port côté hôte est celui que vous ouvrez dans le navigateur.
     ports:
       - "8080:8080"
     volumes:
-      # Configuration unique, montée en lecture seule.
+      # Configuration unique de l'application, montée en lecture seule.
+      # Le mot de passe et allowed_roots sont UNIQUEMENT ici, pas dans Compose.
       - ./config.toml:/app/config.toml:ro
       # Scans, jobs, tests et benchmarks.
+      # config.toml utilise data_dir="./data", résolu en /app/data.
       - ./data:/app/data
       # Vos médias : adaptez le chemin hôte.
+      # Ces chemins doivent être présents dans [paths] allowed_roots.
       - /mnt/media:/mnt/media
       # Fuseau horaire pour la planification.
       - /etc/localtime:/etc/localtime:ro
