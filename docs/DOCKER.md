@@ -14,20 +14,38 @@ pourra être ajouté plus tard pour la découvrabilité.
 
 Architectures : `linux/amd64` et `linux/arm64`.
 
-## Démarrage rapide
+## Télécharger l'image
+
+**Docker est le téléchargeur.** Pas besoin de git sur le NAS :
 
 ```bash
-git clone https://github.com/Cafe-Soluble/presse-agrumes.git
-cd presse-agrumes
+docker pull ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+```
 
-# 1. Éditez config.toml : mot de passe, allowed_roots, port.
+`docker compose up` effectue ce pull automatiquement. `git` n'est utile que
+pour développer ou installer depuis les sources. Pour Docker, il faut seulement
+deux fichiers : `config.toml` et `docker-compose.yml`.
+
+## Démarrage rapide sans git
+
+```bash
+mkdir -p ~/presse-agrumes
+cd ~/presse-agrumes
+
+# 1. Récupérez les deux fichiers (ou téléchargez-les depuis GitHub).
+curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/config.toml
+curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/docker-compose.yml
+
+# 2. Éditez config.toml : mot de passe, allowed_roots, port.
+nano config.toml
 chmod 600 config.toml
 
-# 2. Préparez le dossier de données avec l'UID/GID du conteneur (1000 par défaut).
+# 3. Préparez le dossier de données (UID/GID du conteneur, 1000 par défaut).
 mkdir -p data
 sudo chown -R 1000:1000 data
 
-# 3. Adaptez les volumes média dans docker-compose.yml (/mnt/media).
+# 4. Adaptez les volumes média dans docker-compose.yml (/mnt/media),
+#    puis démarrez (l'image est tirée depuis GHCR).
 docker compose up -d
 docker compose logs -f
 ```
@@ -38,6 +56,33 @@ Puis ouvrez `http://<ip-du-nas>:8080` avec les identifiants de `config.toml`.
 > Compose doit mapper ce port. Le conteneur démarre avec `--strict-port` : si le
 > port est occupé dans le conteneur, il échoue proprement au lieu de basculer
 > silencieusement sur un autre port.
+
+### Variante `docker run` (sans Compose)
+
+Une fois `config.toml` créé et le dossier `data/` préparé :
+
+```bash
+docker run -d --name presse-agrumes \
+  --restart unless-stopped \
+  --user 1000:1000 \
+  -p 8080:8080 \
+  -v "$PWD/config.toml:/app/config.toml:ro" \
+  -v "$PWD/data:/app/data" \
+  -v /mnt/media:/mnt/media \
+  -v /etc/localtime:/etc/localtime:ro \
+  ghcr.io/cafe-soluble/presse-agrumes:0.5.0
+```
+
+Sans montage de `config.toml`, l'image démarre avec son fichier par défaut
+(mot de passe `changez-moi`, `allowed_roots = ["/"]`) : ce n'est pas
+recommandé en production.
+
+### Synology / Unraid / OMV
+
+Ces interfaces savent coller un `docker-compose.yml` ou créer un conteneur
+graphiquement. Il suffit alors de monter `config.toml`, `data/` et les médias,
+sans passer par git. Les chemins d'hôte et l'UID/GID diffèrent selon le NAS :
+voir les sections suivantes.
 
 ## Fonctionnement des volumes
 

@@ -148,15 +148,23 @@ python3 -m venv .venv
 
 C'est le canal recommandé pour un NAS. L'image est publiée sur
 **GitHub Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en
-`amd64` et `arm64`.
+`amd64` et `arm64`. **Pas besoin de git** pour l'utiliser : Docker télécharge
+l'image, et tu télécharges seulement les deux petits fichiers de configuration.
+
+#### Sans git (recommandé)
 
 ```bash
-git clone https://github.com/Cafe-Soluble/presse-agrumes.git
-cd presse-agrumes
+mkdir -p ~/presse-agrumes && cd ~/presse-agrumes
+
+# Télécharge le modèle de configuration et le Compose (version taguée).
+curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/config.toml
+curl -fsSLO https://raw.githubusercontent.com/Cafe-Soluble/presse-agrumes/v0.5.0/docker-compose.yml
+
 nano config.toml          # mot de passe, allowed_roots, port
 chmod 600 config.toml
 mkdir -p data && sudo chown -R 1000:1000 data
-docker compose up -d
+
+docker compose up -d      # télécharge l'image GHCR et démarre
 ```
 
 Le `docker-compose.yml` monte `config.toml` en lecture seule, `data/` et vos
@@ -164,8 +172,12 @@ médias. Adaptez l'UID/GID (`user:`), le chemin `/mnt/media`, et éventuellement
 `/dev/dri` pour VAAPI. Les mises à jour se font avec
 `docker compose pull && docker compose up -d`.
 
+`git clone` n'est nécessaire que pour développer ou installer depuis les
+sources ; pour Docker, `docker pull` (ou `docker compose up`) suffit à
+télécharger l'image.
+
 Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md) (Synology, Unraid, OMV,
-permissions, VAAPI, fuseau horaire, dépannage).
+permissions, VAAPI, fuseau horaire, dépannage, autre méthode `docker run`).
 
 ### Service systemd
 
