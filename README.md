@@ -5,7 +5,7 @@
 Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveurs domestiques. Il parcourt un dossier, détecte les vidéos qui valent le coup d'être réencodées en AV1, regroupe les séries par saison, estime le temps sur votre matériel et permet de vérifier le résultat sur un extrait avant de toucher au moindre fichier.
 
 > [!WARNING]
-> Cet outil lit, déplace et supprime des fichiers vidéo. Il est conçu pour un **réseau local de confiance**. Ne l'exposez pas directement sur Internet : utilisez un VPN ou, au minimum, l'authentification HTTP Basic intégrée (`PA_AUTH_USER` / `PA_AUTH_PASSWORD`) derrière un reverse proxy TLS.
+> Cet outil lit, déplace et supprime des fichiers vidéo. Il est conçu pour un **réseau local de confiance**. Ne l'exposez pas directement sur Internet : utilisez un VPN ou, au minimum, l'authentification HTTP Basic intégrée (`config.toml`) derrière un reverse proxy TLS.
 
 ![Interface principale](docs/screenshots/workspace.png)
 
@@ -91,15 +91,14 @@ Le backend ne fait confiance à aucun chemin : chaque accès passe par `presse_a
 ```bash
 git clone https://github.com/Cafe-Soluble/presse-agrumes.git
 cd presse-agrumes
-cp config.example.toml config.toml
-chmod 600 config.toml
 # Éditez config.toml : mot de passe, racines autorisées, port...
+chmod 600 config.toml
 ./run.sh
 ```
 
-`run.sh` crée le venv, installe les dépendances, compile le frontend s'il manque, puis démarre le serveur.
+`config.toml` est fourni avec le projet (versionné). **Changez le mot de passe par défaut** avant la première connexion. `run.sh` crée le venv, installe les dépendances, compile le frontend s'il manque, puis démarre le serveur.
 
-Si `config.toml` est absent, un mot de passe temporaire est généré et affiché en console. Avec `config.toml`, la console indique simplement que le mot de passe est défini dans le fichier :
+Au démarrage, la console affiche :
 
 ```text
 Port               : 8080  (ou 8081 si 8080 est occupé)
@@ -110,7 +109,7 @@ Utilisateur        : agrumes
 Mot de passe       : défini dans /opt/presse-agrumes/config.toml
 ```
 
-Ouvrez l'URL affichée, puis connectez-vous avec l'utilisateur et le mot de passe de `config.toml`. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
+Ouvrez l'URL affichée, puis connectez-vous avec les identifiants de `config.toml`. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
 
 > Le port est scanné automatiquement : si `8080` est déjà utilisé sur le NAS, l'application bascule sur `8081`, `8082`, etc. L'URL exacte est toujours affichée en console.
 
@@ -155,9 +154,9 @@ sudo systemctl enable --now presse-agrumes
 sudo journalctl -u presse-agrumes -f
 ```
 
-Adaptez `User`, `Group`, `WorkingDirectory`, `PA_ALLOWED_ROOTS` et les chemins ffmpeg. L'utilisateur du service doit pouvoir **lire** les médias et **écrire** dans les dossiers de sortie / corbeille.
+Adaptez `User`, `Group`, `WorkingDirectory` et le fichier `config.toml` (port, chemins, ffmpeg, mot de passe). L'utilisateur du service doit pouvoir **lire** les médias et **écrire** dans les dossiers de sortie / corbeille.
 
-Créez `/opt/presse-agrumes/config.toml` depuis `config.example.toml`, renseignez le mot de passe et faites `chmod 600 config.toml` (utilisateur du service). Le fichier est lu automatiquement depuis le `WorkingDirectory`. Redémarrez après toute modification : `sudo systemctl restart presse-agrumes`.
+Éditez `/opt/presse-agrumes/config.toml`, renseignez le mot de passe et faites `chmod 600 config.toml` (utilisateur du service). Le fichier est lu automatiquement depuis le `WorkingDirectory`. Redémarrez après toute modification : `sudo systemctl restart presse-agrumes`.
 
 ### Reverse proxy / HTTPS
 
@@ -176,7 +175,13 @@ Si vous utilisez SSE derrière un proxy, désactivez le buffering pour `/api/job
 
 ## Configuration
 
-La configuration recommandée est le fichier **`config.toml`** à la racine du projet (ignoré par git). Copiez [`config.example.toml`](config.example.toml) puis adaptez-le :
+**Toute la configuration est dans `config.toml`, versionné avec le projet. Aucune variable d'environnement n'est utilisée.**
+
+```bash
+chmod 600 config.toml
+```
+
+Éditez ensuite :
 
 ```toml
 [server]
@@ -197,28 +202,22 @@ disabled = false
 # ffprobe = "/usr/bin/ffprobe"
 ```
 
-Sécurisez le fichier :
+| Section | Rôle |
+| --- | --- |
+| `[server]` | Adresse d'écoute et port préféré. Si le port est occupé, le suivant est choisi automatiquement. |
+| `[paths]` | `data_dir` (scans/jobs/benchmarks) et `allowed_roots` (dossiers média autorisés). |
+| `[auth]` | Utilisateur et mot de passe HTTP Basic. `disabled = true` uniquement en dev local. |
+| `[ffmpeg]` | Chemins absolus facultatifs vers ffmpeg/ffprobe. |
+
+**En production, changez le mot de passe par défaut `changez-moi` et restreignez `allowed_roots`.** Le fichier doit être lisible uniquement par l'utilisateur du service (`chmod 600`, propriétaire adapté).
+
+Pour utiliser un fichier situé ailleurs (Docker, systemd) :
 
 ```bash
-chmod 600 config.toml
+python -m presse_agrumes --config /config/presse-agrumes.toml
 ```
 
-Les variables d'environnement restent supportées et **ont priorité** sur le fichier (utile en conteneur/systemd) :
-
-| Variable | Défaut | Description |
-| --- | --- | --- |
-| `PA_CONFIG_FILE` | `<projet>/config.toml` | Chemin du fichier TOML. |
-| `PA_HOST` | fichier / `0.0.0.0` | Adresse d'écoute. |
-| `PA_PORT` | fichier / `8080` | Port préféré. Un port libre est cherché si occupé. |
-| `PA_DATA_DIR` | fichier / `<projet>/data` | Scans, jobs, tests, benchmarks. |
-| `PA_ALLOWED_ROOTS` | fichier / `/` | Racines accessibles, séparées par `:`. |
-| `PA_AUTH_USER` | fichier / `agrumes` | Utilisateur HTTP Basic. |
-| `PA_AUTH_PASSWORD` | fichier / généré | Mot de passe fixe. Prioritaire sur le fichier. |
-| `PA_AUTH_DISABLED` | fichier / `0` | `1` pour désactiver l'authentification (dev uniquement). |
-| `FFMPEG_BIN` | fichier / auto | Chemin absolu vers ffmpeg. |
-| `FFPROBE_BIN` | fichier / auto | Chemin absolu vers ffprobe. |
-
-Priorité : **variables d'environnement > config.toml > valeurs par défaut**. Si aucun mot de passe n'est fourni, un mot de passe temporaire est généré et affiché en console.
+Le fichier peut être monté en lecture seule dans un conteneur. Le port, les chemins et le mot de passe sont lus dans ce fichier.
 
 ## Guide d'utilisation
 
@@ -323,10 +322,10 @@ Le facteur de gain dépend du codec source (H.264, HEVC, MPEG-2, etc.), du bits 
 ## Sécurité et permissions
 
 - **Réseau local uniquement** : l'application peut lire, déplacer et supprimer des fichiers. N'exposez jamais le port directement sur Internet.
-- **Mot de passe** : défini dans `config.toml` (recommandé, `chmod 600`) ou via `PA_AUTH_PASSWORD`. Si aucun n'est fourni, un mot de passe temporaire est généré et affiché en console ; il change à chaque redémarrage.
-- `PA_ALLOWED_ROOTS` limite les chemins accessibles. Le navigateur de dossiers ne peut pas sortir de ces racines.
-- `PA_AUTH_USER` / `PA_AUTH_PASSWORD` personnalisent HTTP Basic (l'environnement est prioritaire sur le fichier). Pour du TLS, utilisez un reverse proxy.
-- `PA_AUTH_DISABLED=1` ne doit servir qu'au développement local : l'interface est alors accessible sans mot de passe.
+- **Mot de passe** : défini dans `config.toml` (`[auth] password`), avec `chmod 600`. En production, remplacez le `changez-moi` fourni. Aucune variable d'environnement n'est utilisée.
+- `allowed_roots` (dans `config.toml`) limite les chemins accessibles. Le navigateur de dossiers ne peut pas sortir de ces racines.
+- Pour du TLS, utilisez un reverse proxy devant l'application.
+- `[auth] disabled = true` ne doit servir qu'au développement local : l'interface est alors accessible sans mot de passe.
 - **Suppression directe** : le bouton **Suppr.** supprime définitivement le fichier/pack avec confirmation. Aucune corbeille n'est utilisée pour cette action.
 - Les commandes ffmpeg sont construites sans shell, avec des listes d'arguments. Aucun nom de fichier n'est interprété par un shell.
 - Les liens symboliques ne sont pas suivis pendant le scan (évite les boucles et les sorties de racine).
@@ -349,7 +348,7 @@ presse-agrumes/
 │   ├── paths.py             # garde-fous chemins, navigation, permissions
 │   ├── models.py            # schémas Pydantic
 │   ├── storage.py           # JSON atomique
-│   └── config.py            # variables d'environnement, binaires, auth
+│   └── config.py            # chargement de config.toml, auth, binaires
 ├── frontend/                # SPA React + TypeScript
 │   ├── src/components/ui/   # composants shadcn/ui
 │   ├── src/pages/           # workspace, historique, matériel
@@ -361,7 +360,7 @@ presse-agrumes/
 ├── deploy/                  # unité systemd + exemple d'environnement
 ├── scripts/dev.sh           # backend reload + Vite
 ├── scripts/release.sh       # vérifications + tag git de release
-├── config.example.toml      # modèle de configuration (à copier en config.toml)
+├── config.toml              # configuration unique (versionnée, mot de passe à changer)
 ├── analyze_videos.py        # script CLI historique (référence)
 ├── run.sh                   # démarrage clé en main
 └── data/                    # généré, ignoré par git
@@ -400,10 +399,10 @@ Voir [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) et [`AGENTS.md`](AGENTS.md).
 cd frontend
 npm run typecheck
 npm run build
-npm run test:e2e   # nécessite un serveur lancé (ou Playwright le démarre)
+npm run test:e2e   # démarre automatiquement un backend de test sur 8099
 ```
 
-Le test de fumée Playwright vérifie le chargement de la SPA, la navigation et l'absence d'erreurs console. Sur une VM Debian sans interface graphique, il faut installer Chromium et ses bibliothèques système ; c'est possible en headless (voir `docs/DEVELOPMENT.md`).
+Le test de fumée Playwright vérifie le chargement de la SPA, la navigation et l'absence d'erreurs console. Il utilise `tests/playwright.config.toml` (auth désactivée) et n'a besoin d'aucune variable d'environnement. Sur une VM Debian sans interface graphique, il faut installer Chromium et ses bibliothèques système ; c'est possible en headless (voir `docs/DEVELOPMENT.md`).
 
 ## Versionning et releases
 
@@ -411,8 +410,8 @@ Le versionning suit **SemVer** (`MAJOR.MINOR.PATCH`) et chaque release est tagu�
 dans git :
 
 ```bash
-git tag -a v0.2.0 -m "Presse-Agrumes v0.2.0"
-git push origin v0.2.0
+git tag -a v0.4.0 -m "Presse-Agrumes v0.4.0"
+git push origin v0.4.0
 ```
 
 Les versions sont synchronisées entre :
@@ -428,43 +427,44 @@ Le script `scripts/release.sh X.Y.Z` vérifie la cohérence, lance les tests et 
 build, puis crée le tag annoté. Voir [`docs/RELEASES.md`](docs/RELEASES.md).
 
 Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
-planification, bannière active, erreurs enrichies), `v0.3.0` (mot de passe en
-fichier, suppression directe, ETA recalibrée, limites 10/20/30/50/Tout).
+planification, bannière active, erreurs enrichies), `v0.3.0` (config.toml,
+suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
+fichier, suppression des variables d'environnement).
 
 ## Dépannage
 
 ### « Où est le mot de passe ? »
 
-Avec `config.toml`, il est dans la section `[auth]` :
+Il est dans `config.toml` :
 
 ```bash
 grep -A3 '^\[auth\]' config.toml
 ```
 
-Sans fichier de configuration, il est affiché **dans la console au démarrage** :
+Le mot de passe par défaut du dépôt est `changez-moi` : **changez-le** avant
+d'exposer l'interface sur le réseau. Après modification, redémarrez le service.
 
-```text
-Utilisateur  : agrumes
-Mot de passe : 8beafed746df… (temporaire, régénéré à chaque démarrage)
-```
-
-Sous systemd, le mot de passe du fichier est dans `config.toml` ; le mot de passe
-temporaire éventuel est dans le journal :
+Sous systemd, le fichier doit appartenir à l'utilisateur du service :
 
 ```bash
-sudo journalctl -u presse-agrumes -n 50 | grep -A2 "Mot de passe"
+sudo chown media:media /opt/presse-agrumes/config.toml
+sudo chmod 600 /opt/presse-agrumes/config.toml
+sudo systemctl restart presse-agrumes
 ```
-
-Si vous avez perdu le mot de passe temporaire, redémarrez le service : un nouveau
-sera généré. Si vous utilisez `config.toml`, modifiez le fichier puis redémarrez.
 
 ### Le port 8080 est déjà utilisé
 
 C'est prévu : l'application scanne les ports suivants et affiche celui qu'elle a
-choisi (`8081`, `8082`, …). Pour imposer un port et échouer en cas de conflit :
+choisi (`8081`, `8082`, …). Pour imposer un port, modifiez `port` dans `config.toml` puis utilisez
+`--strict-port` pour échouer en cas de conflit :
+
+```toml
+[server]
+port = 9000
+```
 
 ```bash
-./run.sh --port 9000 --strict-port
+./run.sh --strict-port
 ```
 
 ### « ffmpeg est introuvable » / « Aucun encodeur AV1 »
@@ -474,7 +474,7 @@ which ffmpeg ffprobe
 ffmpeg -hide_banner -encoders | grep -E 'libsvtav1|libaom-av1'
 ```
 
-Sous systemd, le `PATH` est minimal : définissez `FFMPEG_BIN` et `FFPROBE_BIN` en chemins absolus.
+Sous systemd, le `PATH` est minimal : renseignez `[ffmpeg] ffmpeg` et `ffprobe` dans `config.toml` avec des chemins absolus.
 
 ### Le service ne voit pas les fichiers
 
@@ -485,7 +485,7 @@ sudo -u media test -r /mnt/media/film.mkv && echo lisible
 sudo -u media test -w /mnt/media && echo inscriptible
 ```
 
-Puis adaptez `User`, `Group`, les ACL ou `PA_ALLOWED_ROOTS`.
+Puis adaptez `User`, `Group`, les ACL ou `[paths] allowed_roots` dans `config.toml`.
 
 ### Le frontend affiche « interface non compilée »
 

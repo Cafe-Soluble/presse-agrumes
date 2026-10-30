@@ -1,21 +1,20 @@
 """Point d'entrée CLI : `python -m presse_agrumes`.
 
-Au démarrage :
-- génère un mot de passe temporaire si aucun n'est fourni ;
-- cherche un port libre à partir du port demandé (8080 par défaut) ;
-- affiche l'URL, le port, les IP locales et le mot de passe en console.
+Toute la configuration vient de `config.toml` (ou du fichier passé à
+`--config`). Au démarrage :
+- charge le fichier de configuration ;
+- cherche un port libre à partir du port configuré ;
+- affiche l'URL, le port, les IP locales et la source du mot de passe.
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 
 import uvicorn
 
 from . import config
-from .app import app  # noqa: F401  (importé pour charger l'application)
 from .network import (
     find_available_port,
     is_port_available,
@@ -29,15 +28,8 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
     print(line)
     print(f"  🍊 Presse-Agrumes v{config.VERSION}")
     print(line)
+    print(f"  Configuration      : {config.CONFIG_FILE}")
     print(f"  Données            : {config.DATA_DIR}")
-    print(
-        "  Configuration      : "
-        + (
-            str(config.CONFIG_FILE)
-            if config.CONFIG_FILE_EXISTS
-            else f"{config.CONFIG_FILE} (absente — exemple : config.example.toml)"
-        )
-    )
     print(f"  ffmpeg             : {config.ffmpeg_bin() or 'INTROUVABLE (installez ffmpeg)'}")
     print(f"  ffprobe            : {config.ffprobe_bin() or 'INTROUVABLE'}")
     if requested_port != port:
@@ -59,24 +51,23 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
     if config.AUTH_ENABLED:
         print("  Authentification   : HTTP Basic")
         print(f"  Utilisateur        : {config.AUTH_USER}")
-        if config.AUTH_PASSWORD_GENERATED:
-            print(f"  Mot de passe       : {config.AUTH_PASSWORD}")
-            print("                       (temporaire, régénéré à chaque démarrage)")
-        elif config.AUTH_PASSWORD_SOURCE == "config":
-            print(f"  Mot de passe       : défini dans {config.CONFIG_FILE}")
-            try:
-                mode = config.CONFIG_FILE.stat().st_mode & 0o777
-                if mode & 0o077:
-                    print(
-                        "                       ⚠ fichier lisible par d'autres : "
-                        f"chmod 600 {config.CONFIG_FILE}"
-                    )
-            except OSError:
-                pass
-        else:
-            print("  Mot de passe       : défini via PA_AUTH_PASSWORD")
+        print(f"  Mot de passe       : défini dans {config.CONFIG_FILE}")
+        if config.AUTH_PASSWORD_IS_DEFAULT:
+            print(
+                "                       ⚠ MOT DE PASSE PAR DÉFAUT : "
+                "modifiez [auth] password dans config.toml."
+            )
+        try:
+            mode = config.CONFIG_FILE.stat().st_mode & 0o777
+            if mode & 0o077:
+                print(
+                    "                       ⚠ fichier lisible par d'autres : "
+                    f"chmod 600 {config.CONFIG_FILE}"
+                )
+        except OSError:
+            pass
     else:
-        print("  Authentification   : DÉSACTIVÉE (PA_AUTH_DISABLED=1)")
+        print("  Authentification   : DÉSACTIVÉE ([auth] disabled = true)")
         print("                       ⚠ Interface accessible sans mot de passe.")
     print(line)
     print("  Ouvrez l'adresse ci-dessus dans votre navigateur.")
@@ -86,27 +77,34 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Presse-Agrumes — serveur web")
-    parser.add_argument("--host", default=config.HOST)
     parser.add_argument(
-        "--port", type=int, default=None,
-        help=f"Port préféré (défaut : {config.PORT}). Un port libre est cherché si occupé.",
+        "--config",
+        default=None,
+        help="Chemin du fichier TOML (défaut : config.toml à la racine du projet).",
     )
     parser.add_argument("--reload", action="store_true", help="rechargement dev")
     parser.add_argument(
         "--strict-port", action="store_true",
-        help="échouer si le port demandé est occupé au lieu d'en chercher un autre",
+        help="échouer si le port configuré est occupé au lieu d'en chercher un autre",
     )
     args = parser.parse_args()
 
+    if args.config:
+        if args.reload:
+            parser.error("--config n'est pas compatible avec --reload.")
+        try:
+            config.apply_config_file(args.config)
+        except RuntimeError as exc:
+            print(f"Erreur de configuration : {exc}", file=sys.stderr)
+            sys.exit(1)
+
     config.ensure_dirs()
-    requested_port = args.port if args.port is not None else config.PORT
-    if not 0 < requested_port < 65536:
-        print(f"Erreur : port invalide ({requested_port}).", file=sys.stderr)
-        sys.exit(2)
+    requested_port = config.PORT
+    host = config.HOST
 
     try:
         if args.strict_port:
-            if not is_port_available(requested_port, args.host):
+            if not is_port_available(requested_port, host):
                 print(
                     f"Erreur : le port {requested_port} est déjà occupé "
                     "(--strict-port).",
@@ -115,22 +113,15 @@ def main() -> None:
                 sys.exit(1)
             port = requested_port
         else:
-            port = find_available_port(requested_port, args.host)
+            port = find_available_port(requested_port, host)
     except RuntimeError as exc:
         print(f"Erreur : {exc}", file=sys.stderr)
         sys.exit(1)
 
-    # Le mot de passe généré doit être partagé avec le processus de reload
-    # d'uvicorn, sinon le parent afficherait un mot de passe et le fils en
-    # utiliserait un autre.
-    if config.AUTH_PASSWORD_GENERATED:
-        os.environ["PA_AUTH_USER"] = config.AUTH_USER
-        os.environ["PA_AUTH_PASSWORD"] = config.AUTH_PASSWORD
-
-    _print_banner(port, requested_port, args.host)
+    _print_banner(port, requested_port, host)
     uvicorn.run(
         "presse_agrumes.app:app",
-        host=args.host,
+        host=host,
         port=port,
         reload=args.reload,
         reload_dirs=["presse_agrumes"] if args.reload else None,

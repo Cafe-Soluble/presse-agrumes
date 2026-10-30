@@ -236,7 +236,7 @@ def _is_skipped_dir(path: Path) -> bool:
 def run_ffprobe(path: str | Path) -> tuple[dict | None, str | None]:
     binary = config.ffprobe_bin()
     if not binary:
-        return None, "ffprobe introuvable (installez ffmpeg ou définissez FFPROBE_BIN)."
+        return None, "ffprobe introuvable (installez ffmpeg ou renseignez [ffmpeg] dans config.toml)."
     command = [
         binary, "-v", "error", "-print_format", "json",
         "-show_format", "-show_streams", str(path),

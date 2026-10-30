@@ -1,29 +1,26 @@
 """Configuration centrale de Presse-Agrumes.
 
-Un fichier TOML est lu au démarrage (par défaut `<projet>/config.toml`, ou le
-chemin indiqué par `PA_CONFIG_FILE`). Les variables d'environnement restent
-supportées et ont priorité sur le fichier, ce qui permet de surcharger un
-déploiement sans modifier la configuration.
+**Toute la configuration est dans `config.toml`.** Aucune variable
+d'environnement n'est utilisée par l'application. Le fichier est versionné avec
+le projet ; en production, l'utilisateur doit y changer le mot de passe, les
+racines autorisées et, si besoin, le port.
 
-Exemple de fichier : `config.example.toml`.
+Le chemin du fichier peut être changé au lancement avec `--config` (utile pour
+Docker ou un déploiement système) :
 
-Variables d'environnement prioritaires :
-    PA_CONFIG_FILE       chemin du fichier TOML
-    PA_HOST              adresse d'écoute
-    PA_PORT              port préféré
-    PA_DATA_DIR          dossier de données
-    PA_ALLOWED_ROOTS     racines autorisées, séparées par ':'
-    PA_AUTH_USER         utilisateur HTTP Basic
-    PA_AUTH_PASSWORD     mot de passe HTTP Basic
-    PA_AUTH_DISABLED     "1" pour désactiver l'authentification
-    FFMPEG_BIN           chemin explicite vers ffmpeg
-    FFPROBE_BIN          chemin explicite vers ffprobe
+    python -m presse_agrumes --config /etc/presse-agrumes/config.toml
+
+Structure du fichier (voir `config.toml` commenté à la racine) :
+
+    [server]  host, port
+    [paths]   data_dir, allowed_roots
+    [auth]    user, password, disabled
+    [ffmpeg]  ffmpeg, ffprobe (facultatif)
 """
 
 from __future__ import annotations
 
 import os
-import secrets
 import shutil
 from pathlib import Path
 from typing import Any
@@ -37,12 +34,31 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10
         tomllib = None  # type: ignore[assignment]
 
 APP_NAME = "Presse-Agrumes"
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = Path(
-    os.environ.get("PA_CONFIG_FILE", str(BASE_DIR / "config.toml"))
-).expanduser().resolve()
+DEFAULT_CONFIG_FILE = BASE_DIR / "config.toml"
+CONFIG_FILE = DEFAULT_CONFIG_FILE
+CONFIG_FILE_EXISTS = False
+FILE_CONFIG: dict[str, Any] = {}
+
+DEFAULT_PASSWORD_VALUES = {"changez-moi", "change-me", "password", "motdepasse"}
+
+# Valeurs par défaut (remplacées par _apply_config_file).
+HOST = "0.0.0.0"
+PORT = 8080
+DATA_DIR = BASE_DIR / "data"
+SCANS_DIR = DATA_DIR / "scans"
+JOBS_DIR = DATA_DIR / "jobs"
+TESTS_DIR = DATA_DIR / "tests"
+CACHE_DIR = DATA_DIR / "cache"
+ALLOWED_ROOTS: list[Path] = [Path("/")]
+AUTH_DISABLED = False
+AUTH_USER = "agrumes"
+AUTH_PASSWORD = ""
+AUTH_PASSWORD_SOURCE = "config"
+AUTH_PASSWORD_IS_DEFAULT = False
+AUTH_ENABLED = True
 
 
 def read_config_file(path: Path) -> dict[str, Any]:
@@ -51,7 +67,7 @@ def read_config_file(path: Path) -> dict[str, Any]:
         return {}
     if tomllib is None:
         raise RuntimeError(
-            "Le fichier de configuration nécessite TOML. "
+            "La lecture de config.toml nécessite TOML. "
             "Installez 'tomli' (Python < 3.11) ou utilisez Python 3.11+."
         )
     try:
@@ -64,10 +80,6 @@ def read_config_file(path: Path) -> dict[str, Any]:
     return data
 
 
-FILE_CONFIG = read_config_file(CONFIG_FILE)
-CONFIG_FILE_EXISTS = CONFIG_FILE.is_file()
-
-
 def _cfg(section: str, key: str, default: Any = None) -> Any:
     value = FILE_CONFIG.get(section)
     if not isinstance(value, dict):
@@ -75,12 +87,12 @@ def _cfg(section: str, key: str, default: Any = None) -> Any:
     return value.get(key, default)
 
 
-def _env_value(name: str) -> str | None:
-    value = os.environ.get(name)
-    if value is None:
-        return None
-    value = value.strip()
-    return value if value != "" else None
+def _config_path(value: Any) -> Path:
+    """Résout un chemin relatif au dossier qui contient config.toml."""
+    path = Path(str(value)).expanduser()
+    if not path.is_absolute():
+        path = CONFIG_FILE.parent / path
+    return path.resolve()
 
 
 def _as_bool(value: Any, default: bool = False) -> bool:
@@ -91,76 +103,91 @@ def _as_bool(value: Any, default: bool = False) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _config_path(value: Any) -> Path:
-    path = Path(str(value)).expanduser()
-    if not path.is_absolute():
-        path = CONFIG_FILE.parent / path
-    return path.resolve()
+def _apply_config_file() -> None:
+    """(Re)charge les valeurs globales depuis CONFIG_FILE."""
+    global CONFIG_FILE_EXISTS, FILE_CONFIG
+    global HOST, PORT, DATA_DIR, SCANS_DIR, JOBS_DIR, TESTS_DIR, CACHE_DIR
+    global ALLOWED_ROOTS
+    global AUTH_DISABLED, AUTH_USER, AUTH_PASSWORD, AUTH_PASSWORD_SOURCE
+    global AUTH_PASSWORD_IS_DEFAULT, AUTH_ENABLED
 
+    CONFIG_FILE_EXISTS = CONFIG_FILE.is_file()
+    FILE_CONFIG = read_config_file(CONFIG_FILE)
 
-def _resolve_data_path(env_name: str, config_value: Any, default: Path) -> Path:
-    env = _env_value(env_name)
-    if env:
-        return Path(env).expanduser().resolve()
-    if config_value:
-        return _config_path(config_value)
-    return default
+    if not CONFIG_FILE_EXISTS:
+        raise RuntimeError(
+            f"Fichier de configuration introuvable : {CONFIG_FILE}\n"
+            "Le fichier config.toml est fourni avec le projet. "
+            "Créez-le ou lancez avec --config /chemin/vers/config.toml."
+        )
 
+    HOST = str(_cfg("server", "host", "0.0.0.0"))
+    try:
+        PORT = int(_cfg("server", "port", 8080))
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Port invalide dans {CONFIG_FILE} : {exc}") from exc
+    if not 0 < PORT < 65536:
+        raise RuntimeError(f"Port invalide dans {CONFIG_FILE} : {PORT}")
 
-HOST = _env_value("PA_HOST") or str(_cfg("server", "host", "0.0.0.0"))
-try:
-    PORT = int(_env_value("PA_PORT") or _cfg("server", "port", 8080))
-except (TypeError, ValueError) as exc:
-    raise RuntimeError(f"Port invalide dans la configuration : {exc}") from exc
-if not 0 < PORT < 65536:
-    raise RuntimeError(f"Port invalide dans la configuration : {PORT}")
+    data_dir_value = _cfg("paths", "data_dir", "./data")
+    DATA_DIR = _config_path(data_dir_value)
+    SCANS_DIR = DATA_DIR / "scans"
+    JOBS_DIR = DATA_DIR / "jobs"
+    TESTS_DIR = DATA_DIR / "tests"
+    CACHE_DIR = DATA_DIR / "cache"
 
-DATA_DIR = _resolve_data_path(
-    "PA_DATA_DIR", _cfg("paths", "data_dir"), BASE_DIR / "data"
-)
-SCANS_DIR = DATA_DIR / "scans"
-JOBS_DIR = DATA_DIR / "jobs"
-TESTS_DIR = DATA_DIR / "tests"
-CACHE_DIR = DATA_DIR / "cache"
-
-# Racines auxquelles l'interface est autorisée à accéder. Sur un NAS on peut
-# restreindre à /srv, /mnt, /media, /volume1... La valeur par défaut laisse
-# tout le système accessible : l'outil est prévu pour un réseau local de
-# confiance, jamais pour être exposé sur Internet.
-_env_roots = _env_value("PA_ALLOWED_ROOTS")
-if _env_roots:
-    _allowed_values: list[Any] = _env_roots.split(os.pathsep)
-else:
-    _configured_roots = _cfg("paths", "allowed_roots", ["/"])
-    if isinstance(_configured_roots, str):
-        _allowed_values = [part for part in _configured_roots.split(os.pathsep)]
-    elif isinstance(_configured_roots, (list, tuple)):
-        _allowed_values = list(_configured_roots)
+    configured_roots = _cfg("paths", "allowed_roots", ["/"])
+    if isinstance(configured_roots, str):
+        root_values = configured_roots.split(os.pathsep)
+    elif isinstance(configured_roots, (list, tuple)):
+        root_values = list(configured_roots)
     else:
-        _allowed_values = ["/"]
-ALLOWED_ROOTS = [
-    _config_path(value)
-    for value in _allowed_values
-    if str(value).strip()
-]
-if not ALLOWED_ROOTS:
-    ALLOWED_ROOTS = [Path("/")]
+        root_values = ["/"]
+    ALLOWED_ROOTS = [
+        _config_path(value) for value in root_values if str(value).strip()
+    ] or [Path("/")]
+
+    AUTH_DISABLED = _as_bool(_cfg("auth", "disabled", False))
+    AUTH_USER = str(_cfg("auth", "user", "agrumes")).strip() or "agrumes"
+    password = _cfg("auth", "password")
+    password = str(password).strip() if password is not None else ""
+
+    if AUTH_DISABLED:
+        AUTH_PASSWORD = ""
+        AUTH_PASSWORD_SOURCE = "disabled"
+        AUTH_PASSWORD_IS_DEFAULT = False
+        AUTH_ENABLED = False
+    elif password:
+        AUTH_PASSWORD = password
+        AUTH_PASSWORD_SOURCE = "config"
+        AUTH_PASSWORD_IS_DEFAULT = password.lower() in DEFAULT_PASSWORD_VALUES
+        AUTH_ENABLED = True
+    else:
+        raise RuntimeError(
+            f"Aucun mot de passe défini dans {CONFIG_FILE}.\n"
+            "Renseignez [auth] password, ou mettez disabled = true pour le "
+            "développement local."
+        )
 
 
-def _find_binary(name: str, env_var: str, config_key: str) -> str | None:
-    """Cherche un binaire dans l'env, le fichier, le PATH puis les emplacements usuels.
+def apply_config_file(path: str | Path) -> None:
+    """Charge un autre fichier de configuration (option --config, tests)."""
+    global CONFIG_FILE
+    CONFIG_FILE = Path(path).expanduser().resolve()
+    _apply_config_file()
 
-    On privilégie shutil.which() pour respecter le PATH, mais on ajoute des
-    emplacements classiques (dont ~/.local/bin utilisé par le build statique
-    de développement) car un service systemd démarre avec un PATH minimal.
-    """
-    explicit = _env_value(env_var)
-    if not explicit:
-        configured = _cfg("ffmpeg", config_key)
-        if configured:
-            explicit = str(_config_path(configured))
-    if explicit:
-        return explicit if Path(explicit).is_file() else None
+
+def ensure_dirs() -> None:
+    for directory in (DATA_DIR, SCANS_DIR, JOBS_DIR, TESTS_DIR, CACHE_DIR):
+        directory.mkdir(parents=True, exist_ok=True)
+
+
+def _find_binary(name: str, config_key: str) -> str | None:
+    """Cherche un binaire dans config.toml, le PATH puis les emplacements usuels."""
+    configured = _cfg("ffmpeg", config_key)
+    if configured:
+        explicit = _config_path(configured)
+        return str(explicit) if explicit.is_file() else None
     found = shutil.which(name)
     if found:
         return found
@@ -178,53 +205,12 @@ def _find_binary(name: str, env_var: str, config_key: str) -> str | None:
 
 
 def ffmpeg_bin() -> str | None:
-    return _find_binary("ffmpeg", "FFMPEG_BIN", "ffmpeg")
+    return _find_binary("ffmpeg", "ffmpeg")
 
 
 def ffprobe_bin() -> str | None:
-    return _find_binary("ffprobe", "FFPROBE_BIN", "ffprobe")
+    return _find_binary("ffprobe", "ffprobe")
 
 
-def ensure_dirs() -> None:
-    for directory in (DATA_DIR, SCANS_DIR, JOBS_DIR, TESTS_DIR, CACHE_DIR):
-        directory.mkdir(parents=True, exist_ok=True)
-
-
-# ---------------------------------------------------------------------------
-# Authentification
-# ---------------------------------------------------------------------------
-
-_env_disabled = _env_value("PA_AUTH_DISABLED")
-if _env_disabled is not None:
-    AUTH_DISABLED = _as_bool(_env_disabled)
-else:
-    AUTH_DISABLED = _as_bool(_cfg("auth", "disabled", False))
-
-AUTH_USER = (
-    _env_value("PA_AUTH_USER")
-    or str(_cfg("auth", "user", "agrumes"))
-).strip() or "agrumes"
-
-_env_password = _env_value("PA_AUTH_PASSWORD")
-_config_password = _cfg("auth", "password")
-if _config_password is not None:
-    _config_password = str(_config_password).strip() or None
-
-AUTH_PASSWORD_GENERATED = False
-if AUTH_DISABLED:
-    AUTH_PASSWORD = ""
-    AUTH_PASSWORD_SOURCE = "disabled"
-elif _env_password:
-    AUTH_PASSWORD = _env_password
-    AUTH_PASSWORD_SOURCE = "environment"
-elif _config_password:
-    AUTH_PASSWORD = _config_password
-    AUTH_PASSWORD_SOURCE = "config"
-else:
-    # Mot de passe temporaire propre à chaque lancement. Il est affiché dans
-    # la console par __main__ et transmis aux sous-processus uvicorn --reload.
-    AUTH_PASSWORD = secrets.token_hex(8)  # 16 caractères hexadécimaux
-    AUTH_PASSWORD_GENERATED = True
-    AUTH_PASSWORD_SOURCE = "generated"
-
-AUTH_ENABLED = not AUTH_DISABLED and bool(AUTH_USER and AUTH_PASSWORD)
+# Chargement initial (le fichier versionné existe normalement déjà).
+_apply_config_file()

@@ -430,7 +430,7 @@ class JobManager:
                 raise PermissionError(f"Dossier non lisible : {root}")
             if not config.ffprobe_bin():
                 raise RuntimeError(
-                    "ffprobe est introuvable. Installez ffmpeg ou définissez FFPROBE_BIN."
+                    "ffprobe est introuvable. Installez ffmpeg ou renseignez [ffmpeg] dans config.toml."
                 )
 
             options = request.options

@@ -1,5 +1,10 @@
 # Journal de développement
 
+> **Note de lecture (v0.4.0)** : les entrées antérieures à la v0.4.0 mentionnent
+> des variables d'environnement (`PA_*`, `FFMPEG_BIN`, `FFPROBE_BIN`). Elles ont
+> été **entièrement supprimées** : depuis la v0.4.0, seule la configuration par
+> `config.toml` est utilisée. Ces mentions sont conservées comme historique.
+
 > Ce journal est la mémoire du projet. **Ajoutez une entrée datée après chaque
 > intervention notable** : fichiers touchés, décisions, tests, points ouverts.
 
@@ -186,3 +191,25 @@
   supprimé, ligne retirée), job planifié en pause, bouton Suivi (`#job`), job
   avec calibration ETA. Login avec mot de passe `config.toml` validé.
 - **Reste** : commit + tag `v0.3.0` + push (fait après cette entrée).
+
+## 2026-10-30 — v0.4.0 : configuration uniquement par config.toml
+
+- **Suppression de toutes les variables d'environnement** de l'application
+  (`PA_*`, `FFMPEG_BIN`, `FFPROBE_BIN`). `config.py` ne lit plus que le fichier
+  TOML ; `apply_config_file(path)` permet de charger un fichier alternatif
+  (option `--config`, tests, Docker).
+- **`config.toml` devient versionné** et commenté section par section. Mot de
+  passe par défaut `changez-moi` à changer en production, `allowed_roots = ["/"]`
+  à restreindre. `config.example.toml` et `.env.example` supprimés.
+- **Systemd** : plus aucune directive `Environment=` ; la configuration est lue
+  depuis `/opt/presse-agrumes/config.toml`. `--host`/`--port` retirés, le port
+  vient du fichier. `--config`, `--strict-port` et `--reload` restent.
+- **Avertissements** : mot de passe par défaut encore présent, ou permissions de
+  `config.toml` trop larges.
+- **Tests** : `conftest.py` écrit un fichier TOML temporaire et l'applique avant
+  d'importer l'app ; Playwright lance un backend dédié sur le port 8099 avec
+  `tests/playwright.config.toml`. Plus aucune variable d'environnement dans les
+  tests.
+- **Validation** : pytest 36 passés, build Vite OK, Playwright OK, auth par
+  `config.toml`, suppression directe, limites, Suivi et calibration ETA.
+- **Reste** : commit + tag `v0.4.0` + push (fait après cette entrée).

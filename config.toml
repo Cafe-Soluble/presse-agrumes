@@ -1,0 +1,55 @@
+# =============================================================================
+# Presse-Agrumes — configuration unique
+# =============================================================================
+# Ce fichier est versionné avec le projet. En production, changez au minimum
+# le mot de passe ci-dessous, puis restreignez allowed_roots à vos partages.
+#
+# Après modification : redémarrez l'application (./run.sh ou systemctl restart).
+# Aucune variable d'environnement n'est utilisée : tout est ici.
+# =============================================================================
+
+[server]
+# Adresse d'écoute. 0.0.0.0 = accessible depuis le réseau local.
+host = "0.0.0.0"
+
+# Port préféré. S'il est occupé, l'application cherche automatiquement le
+# suivant et affiche le port réel dans la console.
+port = 8080
+
+[paths]
+# Dossier des scans, jobs, tests et benchmarks.
+# Relatif au dossier contenant ce fichier, ou chemin absolu.
+data_dir = "./data"
+
+# Dossiers que l'application a le droit de parcourir / modifier / supprimer.
+# IMPORTANT : en production, ne laissez pas "/" ! Liste tes partages média.
+# Exemple NAS : allowed_roots = ["/mnt/media", "/srv/media", "/volume1/videos"]
+allowed_roots = ["/"]
+
+[auth]
+# Authentification HTTP Basic de l'interface web.
+user = "agrumes"
+
+# ⚠ MOT DE PASSE À CHANGER EN PRODUCTION.
+# Mets ici un mot de passe long et unique. Le fichier doit être protégé :
+#   chmod 600 config.toml
+# et appartenir à l'utilisateur qui lance le service.
+password = "changez-moi"
+
+# true = désactive complètement l'authentification. À réserver au développement
+# local (127.0.0.1), jamais sur le NAS.
+disabled = false
+
+[ffmpeg]
+# Facultatif : chemins absolus si ffmpeg/ffprobe ne sont pas dans le PATH.
+# ffmpeg = "/usr/bin/ffmpeg"
+# ffprobe = "/usr/bin/ffprobe"
+
+# =============================================================================
+# Notes Docker
+# =============================================================================
+# Le fichier peut être monté dans le conteneur, par exemple :
+#   docker run ... -v /data/presse-agrumes/config.toml:/app/config.toml:ro ...
+# ou pointer ailleurs avec l'option de lancement :
+#   python -m presse_agrumes --config /config/presse-agrumes.toml
+# =============================================================================

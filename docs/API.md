@@ -9,16 +9,13 @@ Les erreurs utilisent le format `{"detail": "message"}`.
 ## Authentification
 
 Active par défaut. Le mot de passe est lu dans `config.toml` (`[auth] password`).
-Si aucun mot de passe n'est fourni, un mot de passe temporaire est généré au
-démarrage et affiché dans la console. Toutes les routes (y compris
+Aucune variable d'environnement n'est utilisée. Toutes les routes (y compris
 `/api/health`) exigent HTTP Basic :
 
 ```bash
 curl -u agrumes:motdepasse http://127.0.0.1:8080/api/health
 ```
 
-Variables d'environnement prioritaires : `PA_AUTH_USER`, `PA_AUTH_PASSWORD`,
-`PA_AUTH_DISABLED=1` (développement uniquement).
 
 ## Santé et configuration
 
@@ -50,7 +47,7 @@ Réponse (extrait) :
 }
 ```
 
-Les chemins hors `PA_ALLOWED_ROOTS` renvoient `400`.
+Les chemins hors `[paths] allowed_roots` renvoient `400`.
 
 ## Matériel
 

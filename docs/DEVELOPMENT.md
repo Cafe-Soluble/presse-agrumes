@@ -45,37 +45,28 @@ ln -sf ~/.local/opt/ffmpeg-master-latest-linux64-gpl/bin/ffprobe ~/.local/bin/ff
 ```
 
 `config.py` cherche aussi `~/.local/bin`, ce qui couvre le cas d'un service
-systemd avec un `PATH` minimal (mais `FFMPEG_BIN` reste plus explicite).
+systemd avec un `PATH` minimal. Pour être explicite, renseignez les chemins
+dans `[ffmpeg]` de `config.toml`.
 
 ## Configuration de développement
 
-Copiez `config.example.toml` en `config.toml` (ignoré par git) pour définir un
-mot de passe stable, le port, les racines et les chemins ffmpeg. Les variables
-d'environnement `PA_*` restent prioritaires, ce qui permet aux tests et à
-Playwright de forcer `PA_AUTH_DISABLED=1`, `PA_DATA_DIR` et `PA_ALLOWED_ROOTS`.
+Toute la configuration vient de `config.toml` (versionné). Pour développer :
 
 ```bash
-cp config.example.toml config.toml
 chmod 600 config.toml
+# éditez le mot de passe, le port, allowed_roots...
 ```
+
+Pour éviter la boîte de dialogue HTTP Basic en local, mettez temporairement
+`disabled = true` dans `[auth]` (ne committez pas ce changement). Les tests
+utilisent leur propre fichier `tests/playwright.config.toml`, sans toucher à
+la configuration de production.
 
 ## Lancer en développement
 
-L'authentification est active par défaut (mot de passe de `config.toml`, ou
-généré et affiché en console). Pour éviter la boîte de dialogue HTTP Basic en
-développement :
-
 ```bash
-PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
-```
-
-Ou un mot de passe fixe : `PA_AUTH_PASSWORD=dev`.
-
-Deux terminaux :
-
-```bash
-# Terminal 1 — backend avec reload
-PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
+# Terminal 1 — backend avec reload (port/host lus dans config.toml)
+.venv/bin/python -m presse_agrumes --reload
 
 # Terminal 2 — Vite (proxy /api vers 8080)
 cd frontend
@@ -123,7 +114,8 @@ git add frontend/dist
 
 Les tests :
 
-- créent un environnement isolé dans `/tmp` (`PA_DATA_DIR`, `PA_ALLOWED_ROOTS`) ;
+- écrivent un `config.toml` temporaire (auth désactivée, chemins tmp) et
+  l'appliquent avec `config.apply_config_file` ;
 - génèrent de vraies vidéos H.264 avec ffmpeg (mire + sinus) ;
 - testent le scan, le préflight, la compression, le test qualité, les
   permissions, le déplacement/suppression des originaux, les sorties miroir et
@@ -160,12 +152,11 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Le test démarre le backend automatiquement (`webServer`) avec
-`PA_AUTH_DISABLED=1` s'il ne tourne pas déjà. Si un serveur protégé existe déjà :
+Le test démarre automatiquement un backend dédié sur le port **8099** avec
+`tests/playwright.config.toml` (auth désactivée, données dans `data/e2e`) :
 
 ```bash
-PA_URL=http://127.0.0.1:8080 \
-PA_AUTH_USER=agrumes PA_AUTH_PASSWORD='motdepasse' \
+cd frontend
 npm run test:e2e
 ```
 
@@ -241,9 +232,9 @@ du -sh data/tests/*
 Voir `deploy/presse-agrumes.service` et `README.md`. Points d'attention :
 
 - `User`/`Group` doivent pouvoir lire les médias et écrire les sorties ;
-- `PA_ALLOWED_ROOTS` doit lister les chemins autorisés ;
-- `FFMPEG_BIN`/`FFPROBE_BIN` en absolu si le PATH du service est minimal ;
-- `PA_DATA_DIR` doit être accessible en écriture ;
+- `[paths] allowed_roots` doit lister les chemins autorisés ;
+- `[ffmpeg]` peut contenir des chemins absolus si le PATH du service est minimal ;
+- `[paths] data_dir` doit être accessible en écriture ;
 - redémarrer après un rebuild du frontend n'est pas nécessaire : le serveur lit
   `frontend/dist/index.html` à chaque requête ; en revanche, si `assets/`
   n'existait pas au démarrage, redémarrer.

@@ -2,7 +2,8 @@
 
 L'application écrit et supprime des fichiers : chaque chemin fourni par
 l'utilisateur passe par `guard_path()` qui vérifie qu'il est bien dans une
-racine autorisée (`PA_ALLOWED_ROOTS`) et qu'il ne contient pas d'octet NUL.
+racine autorisée (config.toml `[paths] allowed_roots`) et qu'il ne contient pas
+d'octet NUL.
 """
 
 from __future__ import annotations

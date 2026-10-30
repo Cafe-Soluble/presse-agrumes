@@ -5,24 +5,15 @@ export default defineConfig({
   timeout: 60_000,
   fullyParallel: false,
   use: {
-    baseURL: process.env.PA_URL ?? "http://127.0.0.1:8080",
+    baseURL: "http://127.0.0.1:8099",
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
-    httpCredentials:
-      process.env.PA_AUTH_USER && process.env.PA_AUTH_PASSWORD
-        ? {
-            username: process.env.PA_AUTH_USER,
-            password: process.env.PA_AUTH_PASSWORD,
-          }
-        : undefined,
   },
-  webServer: process.env.PA_URL
-    ? undefined
-    : {
-        command: "PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --port 8080",
-        cwd: "..",
-        url: "http://127.0.0.1:8080/api/health",
-        reuseExistingServer: true,
-        timeout: 120_000,
-      },
+  webServer: {
+    command: ".venv/bin/python -m presse_agrumes --config tests/playwright.config.toml --strict-port",
+    cwd: "..",
+    url: "http://127.0.0.1:8099/api/health",
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
 });

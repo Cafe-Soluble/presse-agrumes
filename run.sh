@@ -32,13 +32,13 @@ MSG
   fi
 fi
 
-if [ ! -f "config.toml" ] && [ -z "${PA_CONFIG_FILE:-}" ]; then
-  echo "ℹ Aucun config.toml : un mot de passe temporaire sera généré au démarrage."
-  echo "  Pour un mot de passe fixe : cp config.example.toml config.toml && chmod 600 config.toml"
+if [ ! -f "config.toml" ]; then
+  echo "⚠ config.toml introuvable. Il est normalement fourni avec le projet." >&2
+  echo "  Restaurez-le depuis git ou lancez avec --config /chemin/vers/config.toml." >&2
 fi
 
-if ! command -v ffmpeg >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/ffmpeg" ] && [ -z "${FFMPEG_BIN:-}" ]; then
-  echo "⚠ ffmpeg est introuvable dans le PATH. Installez-le ou définissez FFMPEG_BIN." >&2
+if ! command -v ffmpeg >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/ffmpeg" ]; then
+  echo "⚠ ffmpeg introuvable. Installez-le ou renseignez [ffmpeg] dans config.toml." >&2
 fi
 
 exec .venv/bin/python -m presse_agrumes "$@"

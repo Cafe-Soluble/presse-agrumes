@@ -9,25 +9,13 @@ Type=simple
 User=media
 Group=media
 WorkingDirectory=/opt/presse-agrumes
-Environment=PA_HOST=0.0.0.0
-Environment=PA_PORT=8080
-Environment=PA_DATA_DIR=/opt/presse-agrumes/data
-Environment=PA_ALLOWED_ROOTS=/mnt/media:/srv/media
-# Configuration recommandée : /opt/presse-agrumes/config.toml
-# (créé depuis config.example.toml, chmod 600, contient le mot de passe).
-# Environment=PA_CONFIG_FILE=/opt/presse-agrumes/config.toml
-# Si aucun mot de passe n'est fourni par config.toml ou l'environnement, un
-# mot de passe temporaire est généré à chaque démarrage et affiché dans le
-# journal :
-#   sudo journalctl -u presse-agrumes -n 50 | grep -A2 "Mot de passe"
-# Pour un mot de passe stable via l'environnement (prioritaire sur le fichier) :
-# Environment=PA_AUTH_USER=agrumes
-# Environment=PA_AUTH_PASSWORD=changez-moi
-# Développement local uniquement (interface sans mot de passe) :
-# Environment=PA_AUTH_DISABLED=1
-Environment=FFMPEG_BIN=/usr/bin/ffmpeg
-Environment=FFPROBE_BIN=/usr/bin/ffprobe
-ExecStart=/opt/presse-agrumes/.venv/bin/python -m presse_agrumes --host 0.0.0.0 --port 8080
+
+# Toute la configuration est dans /opt/presse-agrumes/config.toml
+# (utilisateur du service, permissions 600, mot de passe à changer).
+# Si le fichier est ailleurs, utilisez :
+#   ExecStart=... presse_agrumes --config /etc/presse-agrumes/config.toml
+ExecStart=/opt/presse-agrumes/.venv/bin/python -m presse_agrumes
+
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true

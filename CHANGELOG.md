@@ -1,12 +1,30 @@
 # Changelog
 
+## [0.4.0] — 2026-10-30
+
+### Modifié — rupture de configuration
+
+- **Suppression totale des variables d'environnement** pour la configuration.
+  Seul `config.toml` est lu (ou le fichier passé à `--config`).
+- **`config.toml` est désormais versionné** avec le projet ; il contient un
+  modèle commenté. En production, l'utilisateur doit changer le mot de passe
+  par défaut `changez-moi` et restreindre `allowed_roots`.
+- Les options `--host` et `--port` sont supprimées : hôte et port viennent du
+  fichier de configuration. `--config`, `--strict-port` et `--reload` restent.
+- L'unité systemd ne contient plus aucune ligne `Environment=`.
+- `config.example.toml` et `deploy/presse-agrumes.env.example` sont supprimés.
+- Un avertissement console est affiché si le mot de passe par défaut est encore
+  utilisé, ou si `config.toml` est lisible par d'autres utilisateurs.
+- Tests : configuration temporaire appliquée via `config.apply_config_file`,
+  Playwright sur un backend dédié (port 8099, auth désactivée).
+
 ## [0.3.0] — 2026-10-30
 
 ### Ajouté
 
 - **Fichier de configuration `config.toml`** : mot de passe, utilisateur, port,
-  racines autorisées, dossier de données et chemins ffmpeg. Les variables
-  d'environnement restent prioritaires. `config.example.toml` fourni.
+  racines autorisées, dossier de données et chemins ffmpeg. (Les variables
+  d'environnement ont été supprimées en v0.4.0.)
 - **Suppression directe** d'un fichier, pack ou fichier en erreur depuis les
   résultats, avec confirmation et mise à jour du scan. Route
   `POST /api/scans/{id}/delete`.

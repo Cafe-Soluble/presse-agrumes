@@ -48,21 +48,20 @@
 - **Regroupement des séries explicite** : l'IA ne devine pas si un dossier est
   une série. L'utilisateur marque une racine de séries. Sous cette racine, le
   dossier parent immédiat d'une vidéo devient un pack (saison ou série).
-- **Sécurité locale** : `PA_ALLOWED_ROOTS` + `guard_path`, pas de shell,
-  authentification HTTP Basic active par défaut avec mot de passe généré,
-  liens symboliques non suivis.
+- **Sécurité locale** : `[paths] allowed_roots` + `guard_path`, pas de shell,
+  authentification HTTP Basic avec mot de passe dans `config.toml`, liens
+  symboliques non suivis.
 - **Port** : scan au démarrage pour éviter les conflits (8080 occupé → 8081).
 
 ## Backend
 
 ### `config.py`
 
-Charge `config.toml` (chemin `PA_CONFIG_FILE` ou `<projet>/config.toml`) :
-serveur, chemins, authentification, ffmpeg. Les variables d'environnement
-`PA_*` ont priorité. Si `[auth] password` est absent, un mot de passe temporaire
-est généré ; `PA_AUTH_DISABLED=1` désactive l'authentification pour le
-développement. Le fichier est ignoré par git (`config.example.toml` sert de
-modèle).
+Charge uniquement `config.toml` (ou le fichier passé à `--config`) : serveur,
+chemins, authentification, ffmpeg. **Aucune variable d'environnement.** Le
+fichier est versionné ; `[auth] disabled = true` désactive l'authentification
+pour le développement local. Un mot de passe est obligatoire si l'auth est
+active.
 
 Cherche ffmpeg/ffprobe dans l'ordre : variable d'environnement, fichier TOML,
 `PATH`, `~/.local/bin`, `/usr/local/bin`, `/usr/bin`, `/opt/ffmpeg/bin`. Le

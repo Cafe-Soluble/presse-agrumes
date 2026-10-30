@@ -53,7 +53,7 @@ qualité reste la source de vérité.
 
 **Contexte** : l'outil supprime et déplace des vidéos.
 
-**Décision** : pas de shell, chemins confinés par `PA_ALLOWED_ROOTS`, HTTP
+**Décision** : pas de shell, chemins confinés par `[paths] allowed_roots`, HTTP
 Basic optionnel, sortie temporaire validée avant remplacement, original traité
 seulement après succès, confirmation UI pour la suppression, jamais de
 recompression AV1.
@@ -92,8 +92,7 @@ strictement bit-à-bit ; c'est indiqué dans l'interface et la documentation.
 lancé sur un NAS sans reverse proxy.
 
 **Décision** : HTTP Basic actif par défaut, utilisateur `agrumes`, mot de passe
-temporaire généré au démarrage et affiché uniquement en console. `PA_AUTH_PASSWORD`
-permet un mot de passe fixe ; `PA_AUTH_DISABLED=1` est réservé au développement.
+dans `config.toml`. `[auth] disabled = true` est réservé au développement.
 
 **Conséquences** : protection immédiate sans configuration, mais mot de passe à
 récupérer dans les logs systemd. Pour un accès hors LAN, un reverse proxy TLS
@@ -166,12 +165,11 @@ frontend reste versionné pour un déploiement sans Node.
 l'environnement ; les variables sont peu lisibles sur un NAS.
 
 **Décision** : fichier TOML `config.toml` (ignoré par git) avec `[auth] user` et
-`[auth] password`, chargé à l'import. Les variables `PA_*` restent prioritaires
-pour les conteneurs/tests. Si aucun mot de passe n'est fourni, génération
-temporaire + affichage console.
+`[auth] password`, chargé à l'import. Aucune variable d'environnement n'est
+lue (changement v0.4.0).
 
 **Conséquences** : configuration lisible et versionnable via
-`config.example.toml`, permissions `chmod 600` recommandées, redémarrage requis
+`config.toml` versionné, permissions `chmod 600` recommandées, redémarrage requis
 après modification.
 
 ## ADR-015 — Suppression directe depuis les résultats

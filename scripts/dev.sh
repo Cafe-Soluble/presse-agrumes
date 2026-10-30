@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Développement : backend avec rechargement + Vite en proxy sur le port 5173.
+# La configuration vient de config.toml (auth active : mot de passe à saisir).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -13,7 +14,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload &
+.venv/bin/python -m presse_agrumes --reload &
 BACKEND_PID=$!
 
 (

@@ -10,9 +10,6 @@ htmlcov/
 # Données locales (scans, jobs, clips de test, benchmarks)
 data/
 
-# Configuration locale (peut contenir un mot de passe)
-config.toml
-!config.example.toml
 
 # Médias de test du dépôt (volumineux, jamais versionnés)
 MEDIAS/
@@ -30,6 +27,3 @@ frontend/blob-report/
 # Divers
 *.log
 .DS_Store
-.env
-.env.*
-!deploy/presse-agrumes.env.example

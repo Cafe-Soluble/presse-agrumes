@@ -9,7 +9,7 @@ Presse-Agrumes suit **SemVer** :
 - `PATCH` : correction compatible.
 
 Les tags git sont annotés et préfixés par `v` : `v0.1.0`, `v0.2.0`, `v0.2.1`…
-Les pré-releases peuvent utiliser `v0.3.0-rc.1`.
+Les pré-releases peuvent utiliser `v0.5.0-rc.1`.
 
 ## Fichiers de version à synchroniser
 
@@ -29,11 +29,11 @@ Les pré-releases peuvent utiliser `v0.3.0-rc.1`.
 2. **Bumper les versions** :
    ```bash
    cd frontend
-   npm version 0.3.0 --no-git-tag-version
+   npm version X.Y.Z --no-git-tag-version
    cd ..
-   sed -i 's/__version__ = ".*"/__version__ = "0.3.0"/' presse_agrumes/__init__.py
-   sed -i 's/VERSION = ".*"/VERSION = "0.3.0"/' presse_agrumes/config.py
-   sed -i 's/^version = ".*"/version = "0.3.0"/' pyproject.toml
+   sed -i 's/__version__ = ".*"/__version__ = "X.Y.Z"/' presse_agrumes/__init__.py
+   sed -i 's/VERSION = ".*"/VERSION = "X.Y.Z"/' presse_agrumes/config.py
+   sed -i 's/^version = ".*"/version = "X.Y.Z"/' pyproject.toml
    ```
 3. **Mettre à jour la documentation** si nécessaire (README, roadmap).
 4. **Rebuild le frontend** :
@@ -48,18 +48,18 @@ Les pré-releases peuvent utiliser `v0.3.0-rc.1`.
 6. **Committer** :
    ```bash
    git add -A
-   git commit -m "chore(release): v0.3.0"
+   git commit -m "chore(release): vX.Y.Z"
    ```
 7. **Créer le tag** avec le script :
    ```bash
-   scripts/release.sh 0.3.0
+   scripts/release.sh X.Y.Z
    ```
    Le script vérifie la propreté du dépôt, la cohérence des versions, relance
    les tests et le build, puis crée le tag annoté.
 8. **Pousser** :
    ```bash
    git push origin main
-   git push origin v0.3.0
+   git push origin vX.Y.Z
    ```
 
 ## Vérifier une release
@@ -80,3 +80,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.1.0` | 2026-10-30 | Analyse, compression, test qualité, interface React, documentation. |
 | `v0.2.0` | 2026-10-30 | Mot de passe généré, scan de ports, pause/reprise, planification, bannière des tâches actives, sélection par ligne, erreurs enrichies. |
 | `v0.3.0` | 2026-10-30 | Fichier `config.toml`, suppression directe, limites 10/20/30/50/Tout, calibration ETA automatique. |
+| `v0.4.0` | 2026-10-30 | Configuration uniquement par `config.toml`, suppression des variables d'environnement, fichier versionné, systemd sans `Environment=`. |

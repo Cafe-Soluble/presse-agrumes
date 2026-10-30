@@ -1,8 +1,8 @@
-"""Fixtures de test : environnement isolé + vrais médias générés par ffmpeg.
+"""Fixtures de test : configuration temporaire + vrais médias ffmpeg.
 
-Les tests n'utilisent jamais le dossier `data/` du projet : `PA_DATA_DIR` et
-`PA_ALLOWED_ROOTS` pointent vers un répertoire temporaire créé avant l'import
-de l'application.
+Les tests n'utilisent jamais le `config.toml` de production ni le dossier
+`data/` du projet : un fichier de configuration isolé est écrit avant l'import
+de l'application, avec auth désactivée et chemins temporaires.
 """
 
 from __future__ import annotations
@@ -16,15 +16,31 @@ from pathlib import Path
 import pytest
 
 TEST_ROOT = Path(tempfile.mkdtemp(prefix="presse-agrumes-tests-"))
-os.environ["PA_DATA_DIR"] = str(TEST_ROOT / "data")
-os.environ["PA_ALLOWED_ROOTS"] = str(TEST_ROOT)
-os.environ["PA_AUTH_DISABLED"] = "1"
-os.environ.pop("PA_AUTH_USER", None)
-os.environ.pop("PA_AUTH_PASSWORD", None)
+TEST_CONFIG = TEST_ROOT / "config.toml"
+TEST_CONFIG.write_text(
+    f"""
+[server]
+host = "127.0.0.1"
+port = 8091
+
+[paths]
+data_dir = "{TEST_ROOT / 'data'}"
+allowed_roots = ["{TEST_ROOT}"]
+
+[auth]
+user = "agrumes"
+password = "test-password"
+disabled = true
+""",
+    encoding="utf-8",
+)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
 from presse_agrumes import config, media  # noqa: E402
+
+config.apply_config_file(TEST_CONFIG)
+
 from presse_agrumes.app import app  # noqa: E402
 
 

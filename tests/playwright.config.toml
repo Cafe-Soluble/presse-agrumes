@@ -1,0 +1,14 @@
+# Configuration dédiée aux tests Playwright (auth désactivée, port dédié).
+# Ce fichier ne contient aucun secret et peut être versionné.
+[server]
+host = "127.0.0.1"
+port = 8099
+
+[paths]
+data_dir = "../data/e2e"
+allowed_roots = [".."]
+
+[auth]
+user = "test"
+password = "test-only"
+disabled = true
