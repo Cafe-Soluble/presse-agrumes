@@ -1,0 +1,29 @@
+[Unit]
+Description=Presse-Agrumes — analyse et compression AV1
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Adaptez l'utilisateur, le groupe et le chemin d'installation.
+User=media
+Group=media
+WorkingDirectory=/opt/presse-agrumes
+Environment=PA_HOST=0.0.0.0
+Environment=PA_PORT=8080
+Environment=PA_DATA_DIR=/opt/presse-agrumes/data
+Environment=PA_ALLOWED_ROOTS=/mnt/media:/srv/media
+# Recommandé : authentification HTTP Basic si l'interface est accessible
+# au-delà de votre réseau local de confiance.
+# Environment=PA_AUTH_USER=agrumes
+# Environment=PA_AUTH_PASSWORD=changez-moi
+Environment=FFMPEG_BIN=/usr/bin/ffmpeg
+Environment=FFPROBE_BIN=/usr/bin/ffprobe
+ExecStart=/opt/presse-agrumes/.venv/bin/python -m presse_agrumes --host 0.0.0.0 --port 8080
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

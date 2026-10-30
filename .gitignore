@@ -1,0 +1,31 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Données locales (scans, jobs, clips de test, benchmarks)
+data/
+
+# Médias de test du dépôt (volumineux, jamais versionnés)
+MEDIAS/
+
+# Frontend
+frontend/node_modules/
+frontend/.vite/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+
+# Le build frontend (frontend/dist) est volontairement versionné pour
+# permettre un démarrage sans Node sur le NAS.
+
+# Divers
+*.log
+.DS_Store
+.env
+.env.*
+!deploy/presse-agrumes.env.example
