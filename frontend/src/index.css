@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root,
+  .dark {
+    --background: 220 15% 6%;
+    --foreground: 210 20% 94%;
+    --card: 220 14% 9%;
+    --card-foreground: 210 20% 94%;
+    --popover: 220 14% 9%;
+    --popover-foreground: 210 20% 94%;
+    --primary: 30 100% 62%;
+    --primary-foreground: 25 90% 8%;
+    --secondary: 220 12% 15%;
+    --secondary-foreground: 210 20% 92%;
+    --muted: 220 12% 14%;
+    --muted-foreground: 215 14% 64%;
+    --accent: 30 100% 62%;
+    --accent-foreground: 25 90% 8%;
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 145 63% 49%;
+    --success-foreground: 145 80% 8%;
+    --warning: 42 96% 56%;
+    --warning-foreground: 42 90% 8%;
+    --border: 220 12% 19%;
+    --input: 220 12% 19%;
+    --ring: 30 100% 62%;
+    --radius: 0.8rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.35);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+    border: 2px solid hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 10% 30%);
+  }
+}
+
+@layer components {
+  .app-glow {
+    background-image:
+      radial-gradient(50% 55% at 18% 0%, hsl(var(--primary) / 0.13), transparent 70%),
+      radial-gradient(45% 50% at 85% 0%, hsl(215 90% 60% / 0.09), transparent 70%);
+  }
+
+  .glass-panel {
+    background:
+      linear-gradient(180deg, hsl(var(--card) / 0.94), hsl(var(--background) / 0.92));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 20px 60px hsl(0 0% 0% / 0.28);
+    backdrop-filter: blur(14px);
+  }
+
+  .text-gradient {
+    background: linear-gradient(100deg, hsl(30 100% 72%), hsl(24 100% 56%));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .shimmer {
+    background-image: linear-gradient(
+      100deg,
+      hsl(var(--muted)) 20%,
+      hsl(var(--border)) 40%,
+      hsl(var(--muted)) 60%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+@layer utilities {
+  .animate-in-up {
+    animation: in-up 0.25s ease-out both;
+  }
+  @keyframes in-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
