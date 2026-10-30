@@ -17,11 +17,12 @@ Variables utiles :
 from __future__ import annotations
 
 import os
+import secrets
 import shutil
 from pathlib import Path
 
 APP_NAME = "Presse-Agrumes"
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -91,6 +92,24 @@ def ensure_dirs() -> None:
         directory.mkdir(parents=True, exist_ok=True)
 
 
-AUTH_USER = os.environ.get("PA_AUTH_USER", "").strip()
-AUTH_PASSWORD = os.environ.get("PA_AUTH_PASSWORD", "").strip()
-AUTH_ENABLED = bool(AUTH_USER and AUTH_PASSWORD)
+AUTH_DISABLED = os.environ.get("PA_AUTH_DISABLED", "").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+AUTH_USER = os.environ.get("PA_AUTH_USER", "").strip() or "agrumes"
+_configured_password = os.environ.get("PA_AUTH_PASSWORD", "").strip()
+AUTH_PASSWORD_GENERATED = False
+
+if AUTH_DISABLED:
+    AUTH_PASSWORD = ""
+    AUTH_PASSWORD_SOURCE = "disabled"
+elif _configured_password:
+    AUTH_PASSWORD = _configured_password
+    AUTH_PASSWORD_SOURCE = "environment"
+else:
+    # Mot de passe temporaire propre à chaque lancement. Il est affiché dans
+    # la console par __main__ et transmis aux sous-processus uvicorn --reload.
+    AUTH_PASSWORD = secrets.token_hex(8)  # 16 caractères hexadécimaux
+    AUTH_PASSWORD_GENERATED = True
+    AUTH_PASSWORD_SOURCE = "generated"
+
+AUTH_ENABLED = not AUTH_DISABLED and bool(AUTH_USER and AUTH_PASSWORD)

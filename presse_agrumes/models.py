@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from .schedule import normalize_hhmm, parse_hhmm
 
 
 class ScanOptions(BaseModel):
@@ -69,6 +71,39 @@ class OriginalOptions(BaseModel):
     trash_dir: str | None = None
 
 
+class ScheduleWindow(BaseModel):
+    days: list[int] = Field(default_factory=lambda: list(range(7)))
+    start: str = "22:00"
+    end: str = "07:00"
+
+    @field_validator("days")
+    @classmethod
+    def _valid_days(cls, value: list[int]) -> list[int]:
+        days = sorted({int(day) for day in value})
+        if not days:
+            raise ValueError("Sélectionnez au moins un jour.")
+        if any(day < 0 or day > 6 for day in days):
+            raise ValueError("Les jours doivent être compris entre 0 (lundi) et 6 (dimanche).")
+        return days
+
+    @field_validator("start", "end")
+    @classmethod
+    def _valid_time(cls, value: str) -> str:
+        parse_hhmm(value)
+        return normalize_hhmm(value)
+
+
+class CompressionSchedule(BaseModel):
+    enabled: bool = False
+    windows: list[ScheduleWindow] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _windows_required(self):
+        if self.enabled and not self.windows:
+            raise ValueError("Ajoutez au moins une plage horaire ou désactivez la planification.")
+        return self
+
+
 class CompressRequest(BaseModel):
     scan_id: str
     item_ids: list[str] = Field(min_length=1)
@@ -78,6 +113,7 @@ class CompressRequest(BaseModel):
     resource_percent: int = Field(default=70, ge=5, le=100)
     concurrency: int = Field(default=1, ge=1, le=4)
     verify: bool = True
+    schedule: CompressionSchedule = Field(default_factory=CompressionSchedule)
 
 
 class TestRequest(BaseModel):

@@ -8,19 +8,22 @@ Les erreurs utilisent le format `{"detail": "message"}`.
 
 ## Authentification
 
-Désactivée par défaut. Si `PA_AUTH_USER` et `PA_AUTH_PASSWORD` sont définis,
-toutes les routes (y compris `/api/health`) exigent HTTP Basic :
+Active par défaut. Si `PA_AUTH_PASSWORD` n'est pas fourni, un mot de passe
+temporaire est généré au démarrage et affiché dans la console. Toutes les routes
+(y compris `/api/health`) exigent HTTP Basic :
 
 ```bash
 curl -u agrumes:motdepasse http://127.0.0.1:8080/api/health
 ```
 
+Pour désactiver l'authentification en développement : `PA_AUTH_DISABLED=1`.
+
 ## Santé et configuration
 
 | Méthode | Route | Description |
 | --- | --- | --- |
-| GET | `/api/health` | Statut, version, chemins ffmpeg/ffprobe, auth. |
-| GET | `/api/config` | Presets qualité, défauts, racines autorisées, notes. |
+| GET | `/api/health` | Statut, version, chemins ffmpeg/ffprobe, auth, fuseau serveur. |
+| GET | `/api/config` | Presets qualité, défauts, racines autorisées, notes, fuseau. |
 | GET | `/api/mounts` | Racines pratiques (home, `/mnt`, `/media`, montages). |
 
 ## Fichiers
@@ -97,7 +100,10 @@ polling.
 | Méthode | Route | Description |
 | --- | --- | --- |
 | GET | `/api/jobs/{job_id}` | Snapshot JSON. |
+| GET | `/api/jobs/active` | Jobs en cours (queued/running/paused), tous types. |
 | GET | `/api/jobs/{job_id}/events` | Flux SSE (`data: {snapshot}\n\n`). |
+| POST | `/api/jobs/{job_id}/pause` | Pause une compression (SIGSTOP). |
+| POST | `/api/jobs/{job_id}/resume` | Reprend une compression en pause manuelle. |
 | POST | `/api/jobs/{job_id}/cancel` | Annulation. |
 | GET | `/api/jobs?limit=30` | Jobs récents (mémoire + persistés). |
 
@@ -174,9 +180,31 @@ Les modes d'originaux : `keep`, `delete`, `move` (avec `trash_dir`).
 
 ## Compression
 
-`POST /api/compressions` — même corps que le préflight, plus `verify: true`.
-Réponse : snapshot de job. Le job contient les items avec `status`, `percent`,
-`output_size`, `saved_bytes`, `error`, `warning`.
+`POST /api/compressions` — même corps que le préflight, plus `verify: true` et
+`schedule` optionnel. Réponse : snapshot de job. Le job contient les items avec
+`status`, `percent`, `output_size`, `saved_bytes`, `error`, `warning`.
+
+Statuts : `queued`, `running`, `paused`, `done`, `error`, `cancelled`,
+`interrupted`. Un job `paused` contient `pause_reasons` (`manual`, `schedule`),
+`next_resume_at` et reste visible dans `/api/jobs/active`.
+
+Le champ `schedule` optionnel permet de limiter l'encodage à des plages :
+
+```json
+{
+  "schedule": {
+    "enabled": true,
+    "windows": [
+      { "days": [0, 1, 2, 3, 4], "start": "22:00", "end": "07:00" }
+    ]
+  }
+}
+```
+
+`days` : 0 = lundi … 6 = dimanche. Heures locales du serveur. Une plage qui
+traverse minuit couvre le jour de début et la matinée suivante ; `start == end`
+signifie toute la journée. Hors plage, le job passe en `paused` et reprend
+automatiquement.
 
 Exemple :
 

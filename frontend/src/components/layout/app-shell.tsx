@@ -4,6 +4,7 @@ import { Citrus, Cpu, History, MonitorPlay, Server, TriangleAlert } from "lucide
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { ActiveJobsBanner } from "@/components/active-jobs-banner";
 
 const navigation = [
   { to: "/", label: "Compression", icon: MonitorPlay, end: true },
@@ -77,6 +78,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </Badge>
         </div>
       </header>
+
+      <ActiveJobsBanner />
 
       <div className="relative z-10">{children}</div>
 

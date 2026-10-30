@@ -127,3 +127,37 @@
 - Reste : validation sur le vrai NAS (droits réels, chemins `/mnt`, encodeur
   matériel).
 
+
+## 2026-10-30 — v0.2.0 : auth, ports, pause, planification, bannière active
+
+- **Authentification par défaut** : `config.py` génère `secrets.token_hex(8)` si
+  `PA_AUTH_PASSWORD` est absent ; `__main__.py` affiche utilisateur, mot de passe,
+  port et IP locales. `PA_AUTH_DISABLED=1` pour les tests/dev. Le mot de passe
+  généré est copié dans l'environnement pour que `uvicorn --reload` utilise le
+  même dans le processus fils.
+- **Scan de ports** : `network.py` (bind TCP, IP via UDP/hostname/SIOCGIFADDR).
+  Testé : 8080 occupé → 8081, avec affichage de l'URL et de l'IP Tailscale.
+  `--strict-port` permet d'échouer volontairement.
+- **Pause/reprise** : statut `paused`, raisons `manual`/`schedule`,
+  `SIGSTOP`/`SIGCONT`, `wait_if_paused`, `Job.condition`. Test réel de pause au
+  milieu d'un encodage + reprise.
+- **Planification** : `schedule.py` + `CompressionSchedule` Pydantic + UI
+  (`schedule-editor.tsx`). Fenêtres par jour/heure, traversée de minuit,
+  évaluation toutes les 15 s, `next_resume_at`. Test d'un job qui démarre en
+  pause hors plage, puis annulation.
+- **Bannière active** : `GET /api/jobs/active`, `active-jobs-banner.tsx`,
+  polling 2,5 s, réouverture auto du panneau après reload via `context.scan_id`.
+  Testé headless : job planifié en pause, reload, bannière + panneau toujours
+  visibles.
+- **Sélection par ligne** : clic sur toute la ligne, exclusion des boutons/
+  checkbox/details. Testé Playwright (`checkbox after row click: true`).
+- **Erreurs enrichies** : `error_code`/`error_hint` (`empty_file`,
+  `invalid_data`, permissions, timeout…). Le fichier vide de `MEDIAS/` affiche
+  désormais « Fichier vide (0 octet) » et un conseil. Captures
+  `docs/screenshots/error-handling.png`.
+- **Versionning** : passage en 0.2.0, tag `v0.1.0` créé sur la release
+  précédente, `scripts/release.sh`, `docs/RELEASES.md`, CHANGELOG.
+- **Tests** : `pytest` → **30 passés** ; `npm run typecheck` + build OK ;
+  Playwright → 1 passé avec auth Basic. Vérifications manuelles : auth 401/200,
+  port 8081, `--reload` avec mot de passe partagé.
+- **Reste** : commit + tag `v0.2.0` + push (fait après cette entrée).

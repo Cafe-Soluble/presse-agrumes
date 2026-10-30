@@ -59,12 +59,14 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `jobs.py` | Orchestration des jobs scan/compression/test, progression, annulation, préflight, commandes ffmpeg. |
 | `media.py` | Extensions, `find_video_files`, ffprobe, analyse, estimation de gain, construction des commandes ffmpeg. |
 | `series.py` | IDs stables, regroupement des packs de séries, résolution des items sélectionnés en fichiers. |
+| `schedule.py` | Plages horaires, calcul de la prochaine reprise (jours, heures, minuit). |
+| `network.py` | Scan de ports libres et énumération des IP locales. |
 | `hardware.py` | Détection CPU/RAM/GPU/encodeurs, benchmark ffmpeg, cache, calcul d'ETA. |
 | `paths.py` | `guard_path`, racines autorisées, navigation, permissions, `ensure_writable_dir`. |
-| `models.py` | Schémas Pydantic des requêtes. |
+| `models.py` | Schémas Pydantic des requêtes (dont `CompressionSchedule`). |
 | `storage.py` | Écriture JSON atomique (scans, jobs, tests, cache matériel). |
-| `config.py` | Variables `PA_*`, détection de ffmpeg/ffprobe, dossiers de données. |
-| `__main__.py` | CLI Uvicorn et affichage de l'URL. |
+| `config.py` | Variables `PA_*`, détection de ffmpeg/ffprobe, dossiers, auth générée. |
+| `__main__.py` | CLI Uvicorn, scan de port, affichage URL/IP/mot de passe. |
 
 ### Frontend `frontend/src/`
 
@@ -74,7 +76,9 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `components/folder-step.tsx` | Étape 1 : dossier, options, dossiers de séries, progression du scan. |
 | `components/results-panel.tsx` | Étape 2 : résumé, filtres, tri, lignes, packs, erreurs. |
 | `components/compression-panel.tsx` | Étape 3 : réglages AV1, ressources, originaux, destination, ETA, préflight. |
-| `components/job-panel.tsx` | Suivi d'un job de compression, journal, résultat. |
+| `components/job-panel.tsx` | Suivi d'un job de compression, journal, pause/reprise, résultat. |
+| `components/active-jobs-banner.tsx` | Bannière globale des jobs actifs (polling `/api/jobs/active`). |
+| `components/schedule-editor.tsx` | Plages horaires (jours, début, fin, traversée de minuit). |
 | `components/test-dialog.tsx` | Test qualité et comparaison vidéo côte à côte. |
 | `components/browse-dialog.tsx` | Navigateur de dossiers (racine, séries, sortie, corbeille). |
 | `components/page.tsx`, `layout/app-shell.tsx` | Mise en page, header, navigation. |
@@ -124,6 +128,18 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
 3. Ensuite seulement : original conservé / supprimé / déplacé vers la corbeille.
 4. Le job est persisté après chaque fichier.
 
+### Pause, reprise et planification
+
+- `Job.pause(reason)` ajoute une raison (`manual`, `schedule`), passe le statut
+  à `paused` et envoie `SIGSTOP` aux ffmpeg en cours.
+- `Job.resume(reason)` retire la raison ; si plus aucune raison, `SIGCONT` et
+  statut `running`.
+- `wait_if_paused()` bloque les workers avant de démarrer un fichier.
+- La planification est évaluée toutes les 15 s par un thread dédié. Hors plage :
+  pause `schedule` + `next_resume_at`.
+- Les jobs `paused` ne sont **pas** terminaux : ils restent dans
+  `/api/jobs/active` et le frontend les réaffiche après rechargement.
+
 ### Test qualité
 
 1. `POST /api/tests` prend un extrait (pourcentage ou seconde).
@@ -152,6 +168,14 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
    Le client a un repli polling TanStack Query.
 10. **Le dossier `frontend/dist` est versionné** pour un déploiement sans Node.
     Rebuild après toute modification frontend et committer le nouveau build.
+11. **Authentification par défaut** : un mot de passe temporaire est généré au
+    démarrage et affiché en console. Ne jamais logger le mot de passe côté
+    requête, ne pas l'exposer dans `/api/config`. `PA_AUTH_DISABLED=1` est
+    réservé au développement/tests.
+12. **Port** : le port préféré est scanné ; ne pas coder 8080 en dur dans les
+    URLs du frontend (utiliser des chemins relatifs).
+13. **Pause** : les ffmpeg sont suspendus par `SIGSTOP` ; ne jamais supprimer un
+    fichier temporaire pendant une pause (le job doit pouvoir reprendre).
 
 ## Ajouter une fonctionnalité
 
@@ -179,10 +203,10 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
 - `tests/conftest.py` crée un environnement isolé (`PA_DATA_DIR`,
   `PA_ALLOWED_ROOTS` dans un tmp), génère de vraies vidéos H.264 avec ffmpeg,
   et fournit `TestClient`.
-- `tests/test_core.py` : formats, estimation, permissions, regroupement séries.
+- `tests/test_core.py` : formats, estimation, permissions, fichiers vides/corrompus, planification, pause de job, scan de ports, regroupement séries.
 - `tests/test_api.py` : health, SPA, scan, préflight, test qualité, compression
   avec suppression/déplacement/remplacement, dossier miroir, dossier en lecture
-  seule, fichiers AV1.
+  seule, fichiers AV1, auth Basic, jobs actifs, pause/reprise, planification.
 - Les tests nécessitent ffmpeg/ffprobe ; ils sont ignorés (`skip`) sinon.
 - `frontend/e2e/smoke.spec.ts` : navigation SPA et absence d'erreurs console.
 
@@ -212,6 +236,18 @@ locale sans root.
   `models.py` et les dictionnaires de `jobs.py`.
 - **Build Vite** : les noms d'assets sont hashés ; après rebuild, le serveur
   FastAPI continue de servir le dossier `assets/` (pas de cache d'index).
+- **Mot de passe généré** : il est créé à l'import de `config.py`, affiché par
+  `__main__.py`, puis copié dans l'environnement pour que le sous-processus
+  `--reload` utilise le même. Ne pas déplacer cette logique dans `app.py`.
+- **Deux instances** : le scan de port peut lancer une deuxième instance si 8080
+  est occupé par un autre Presse-Agrumes. Elles partagent `data/` ; éviter ce cas
+  sur un NAS (utiliser `--strict-port` ou arrêter l'ancienne).
+- **Planification** : heures locales du serveur, précision de 15 s ; une plage
+  `22:00→07:00` traverse minuit et appartient au jour de début.
+- **Pause** : `SIGSTOP`/`SIGCONT` ne fonctionnent que sur POSIX (cible Linux).
+  Ne pas remplacer par une suppression/relance de ffmpeg.
+- **Jobs actifs** : `/api/jobs/active` ne lit que la mémoire ; après redémarrage
+  du service, les jobs sont `interrupted` (pas de reprise automatique).
 
 ## Journal
 

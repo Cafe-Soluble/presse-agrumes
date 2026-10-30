@@ -16,6 +16,7 @@ import concurrent.futures
 import hashlib
 import os
 import shutil
+import signal
 import subprocess
 import threading
 import time
@@ -24,7 +25,7 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import config, hardware, media, paths, series, storage
+from . import config, hardware, media, paths, schedule as schedule_module, series, storage
 from .models import BenchmarkRequest, CompressRequest, ScanRequest, TestRequest
 
 TERMINAL_STATUSES = {"done", "error", "cancelled", "interrupted"}
@@ -52,10 +53,12 @@ def _unique_destination(destination: Path) -> Path:
 
 
 class Job:
-    def __init__(self, job_id: str, kind: str, label: str):
+    def __init__(self, job_id: str, kind: str, label: str, context: dict | None = None):
         self.id = job_id
         self.kind = kind
         self.label = label
+        self.context = context or {}
+        self.schedule: dict | None = None
         self.status = "queued"
         self.created_at = _now()
         self.started_at: str | None = None
@@ -81,12 +84,17 @@ class Job:
         self.seq = 0
         self.cancel_event = threading.Event()
         self.processes: set[subprocess.Popen] = set()
+        self.pause_reasons: set[str] = set()
+        self.next_resume_at: str | None = None
         self.lock = threading.RLock()
+        self.condition = threading.Condition(self.lock)
         self._start_monotonic: float | None = None
 
     # -- état -------------------------------------------------------------
     def set_status(self, status: str, *, error: str | None = None) -> None:
         with self.lock:
+            if status == "running" and self.pause_reasons:
+                status = "paused"
             self.status = status
             if error is not None:
                 self.error = error
@@ -95,6 +103,8 @@ class Job:
                 self._start_monotonic = time.monotonic()
             if status in TERMINAL_STATUSES:
                 self.finished_at = _now()
+                self.pause_reasons.clear()
+                self.condition.notify_all()
                 if self._start_monotonic:
                     self.progress["elapsed_seconds"] = round(
                         time.monotonic() - self._start_monotonic, 1
@@ -126,15 +136,82 @@ class Job:
         with self.lock:
             self.processes.discard(process)
 
+    def _send_signal(self, processes: list[subprocess.Popen], sig: int) -> None:
+        for process in processes:
+            try:
+                process.send_signal(sig)
+            except (OSError, ValueError):
+                pass
+
+    def pause(self, reason: str = "manual", next_resume_at: str | None = None) -> bool:
+        """Met le job en pause et suspend les ffmpeg en cours (SIGSTOP)."""
+        with self.condition:
+            newly = reason not in self.pause_reasons
+            self.pause_reasons.add(reason)
+            if next_resume_at is not None:
+                self.next_resume_at = next_resume_at
+            if self.status in {"queued", "running"}:
+                self.status = "paused"
+            self.seq += 1
+            processes = list(self.processes) if newly else []
+        if newly:
+            if hasattr(signal, "SIGSTOP"):
+                self._send_signal(processes, signal.SIGSTOP)
+            self.add_log(f"Pause ({self._pause_label(reason)}).")
+        return True
+
+    def resume(self, reason: str = "manual") -> bool:
+        """Retire une raison de pause ; reprend si plus aucune raison."""
+        with self.condition:
+            if reason not in self.pause_reasons:
+                return False
+            self.pause_reasons.discard(reason)
+            remaining = bool(self.pause_reasons)
+            if not remaining:
+                self.next_resume_at = None
+                if self.status == "paused":
+                    self.status = "running"
+            self.seq += 1
+            self.condition.notify_all()
+            processes = list(self.processes)
+        if not remaining:
+            if hasattr(signal, "SIGCONT"):
+                self._send_signal(processes, signal.SIGCONT)
+            self.add_log("Reprise de la compression.")
+        return True
+
+    def wait_if_paused(self) -> None:
+        """Bloque le thread de travail tant que le job est en pause."""
+        with self.condition:
+            while self.pause_reasons and not self.cancel_event.is_set():
+                self.condition.wait(timeout=2.0)
+        if self.cancel_event.is_set():
+            return
+
+    def is_paused(self) -> bool:
+        return bool(self.pause_reasons)
+
+    @staticmethod
+    def _pause_label(reason: str) -> str:
+        return {
+            "manual": "manuelle",
+            "schedule": "hors plage horaire",
+        }.get(reason, reason)
+
     def request_cancel(self) -> None:
         self.cancel_event.set()
         self.add_log("Annulation demandée par l'utilisateur…")
-        with self.lock:
+        with self.condition:
+            self.pause_reasons.clear()
+            self.next_resume_at = None
+            self.condition.notify_all()
             processes = list(self.processes)
         for process in processes:
             try:
+                if hasattr(signal, "SIGCONT"):
+                    process.send_signal(signal.SIGCONT)
                 process.terminate()
-            except OSError:
+            except (OSError, ValueError):
                 pass
 
     def is_cancelled(self) -> bool:
@@ -157,6 +234,10 @@ class Job:
                 "warnings": list(self.warnings),
                 "items": [dict(item) for item in self.items],
                 "estimate": self.estimate,
+                "context": dict(self.context),
+                "schedule": self.schedule,
+                "pause_reasons": sorted(self.pause_reasons),
+                "next_resume_at": self.next_resume_at,
                 "logs": list(self.logs)[-150:] if include_logs else [],
             }
         return data
@@ -195,24 +276,58 @@ class JobManager:
         )
         return result[:limit]
 
-    def _new_job(self, kind: str, label: str) -> Job:
-        job = Job(uuid.uuid4().hex, kind, label)
+    def _new_job(self, kind: str, label: str, context: dict | None = None) -> Job:
+        job = Job(uuid.uuid4().hex, kind, label, context)
         with self.lock:
             self.jobs[job.id] = job
         return job
 
+    def active(self) -> list[dict]:
+        """Jobs actuellement en cours (y compris en pause), du plus récent au plus ancien."""
+        with self.lock:
+            jobs = [
+                job for job in self.jobs.values()
+                if job.status in {"queued", "running", "paused"}
+            ]
+        jobs.sort(key=lambda job: job.created_at, reverse=True)
+        return [job.snapshot(include_logs=False) for job in jobs]
+
     def recover(self) -> None:
         """Marque comme interrompus les jobs laissés en cours au redémarrage."""
         for data in storage.list_jobs(limit=500):
-            if data.get("status") in {"queued", "running"}:
+            if data.get("status") in {"queued", "running", "paused"}:
                 data["status"] = "interrupted"
                 data["finished_at"] = _now()
                 data["error"] = "Service redémarré pendant la tâche."
+                data["pause_reasons"] = []
                 storage.save_job(data)
+
+    # -- pause / reprise --------------------------------------------------
+    def pause(self, job_id: str, reason: str = "manual") -> bool:
+        job = self.get(job_id)
+        if job is None or job.status in TERMINAL_STATUSES:
+            return False
+        if job.kind != "compress":
+            return False
+        job.pause(reason)
+        self._persist(job)
+        return True
+
+    def resume(self, job_id: str, reason: str = "manual") -> bool:
+        job = self.get(job_id)
+        if job is None or job.status in TERMINAL_STATUSES:
+            return False
+        if job.kind != "compress":
+            return False
+        changed = job.resume(reason)
+        self._persist(job)
+        return changed
 
     # -- scan -------------------------------------------------------------
     def start_scan(self, request: ScanRequest) -> Job:
-        job = self._new_job("scan", f"Analyse de {request.root}")
+        job = self._new_job(
+            "scan", f"Analyse de {request.root}", {"root": request.root}
+        )
         self._persist(job)
         thread = threading.Thread(
             target=self._run_scan, args=(job, request), daemon=True,
@@ -590,7 +705,11 @@ class JobManager:
         scan = storage.load_scan(request.scan_id)
         if scan is None:
             raise ValueError("Scan introuvable.")
-        job = self._new_job("compress", f"Compression de {len(request.item_ids)} élément(s)")
+        job = self._new_job(
+            "compress",
+            f"Compression de {len(request.item_ids)} élément(s)",
+            {"scan_id": request.scan_id, "item_count": len(request.item_ids)},
+        )
         self._persist(job)
         thread = threading.Thread(
             target=self._run_compression, args=(job, request, scan), daemon=True,
@@ -601,6 +720,7 @@ class JobManager:
 
     def _run_compression(self, job: Job, request: CompressRequest, scan: dict) -> None:
         job.set_status("running")
+        schedule_stop = threading.Event()
         try:
             if not config.ffmpeg_bin():
                 raise RuntimeError("ffmpeg est introuvable.")
@@ -647,7 +767,48 @@ class JobManager:
                 f"preset {request.settings.preset}, CRF {request.settings.crf}, "
                 f"{plan['threads']} thread(s)."
             )
+
+            if request.schedule.enabled:
+                job.schedule = request.schedule.model_dump()
+                now = datetime.now().astimezone()
+                if not schedule_module.is_within_windows(now, request.schedule.windows):
+                    next_start = schedule_module.next_window_start(
+                        now, request.schedule.windows
+                    )
+                    job.pause(
+                        "schedule",
+                        next_start.isoformat() if next_start else None,
+                    )
+                    job.update_progress(
+                        message=(
+                            "En attente de la plage horaire autorisée"
+                            + (
+                                f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
+                                if next_start else ""
+                            )
+                        ),
+                        eta_seconds=None,
+                    )
+                    job.add_log(
+                        "Planification : "
+                        + schedule_module.describe_windows(request.schedule.windows)
+                    )
+                scheduler = threading.Thread(
+                    target=self._schedule_loop,
+                    args=(job, request.schedule, schedule_stop),
+                    daemon=True,
+                    name=f"schedule-{job.id[:8]}",
+                )
+                scheduler.start()
             self._persist(job)
+
+            job.wait_if_paused()
+            if job.is_cancelled():
+                job.set_status(
+                    "cancelled", error="Compression annulée avant démarrage."
+                )
+                job.result = {"cancelled": True, "success": 0, "failed": 0}
+                return
 
             total_duration = max(0.01, plan["total_duration_sec"])
             completed_duration = 0.0
@@ -784,11 +945,15 @@ class JobManager:
             job.set_status("error", error=f"Erreur inattendue : {exc}")
             job.add_log(f"Erreur inattendue : {exc}")
         finally:
+            schedule_stop.set()
             self._persist(job)
 
     def _compress_one(
         self, job: Job, task: dict, request: CompressRequest, plan: dict, threads: int
     ) -> dict:
+        job.wait_if_paused()
+        if job.is_cancelled():
+            return {"status": "cancelled"}
         source = Path(task["source"])
         destination = Path(task["destination"])
         settings = request.settings
@@ -914,6 +1079,40 @@ class JobManager:
             "logs": logs[-5:],
         }
 
+    def _schedule_loop(self, job: Job, schedule, stop_event: threading.Event) -> None:
+        """Applique les plages horaires toutes les 15 s."""
+        while not stop_event.wait(15):
+            if job.status in TERMINAL_STATUSES or job.is_cancelled():
+                return
+            now = datetime.now().astimezone()
+            if schedule_module.is_within_windows(now, schedule.windows):
+                if "schedule" in job.pause_reasons:
+                    job.resume("schedule")
+                    job.update_progress(
+                        message="Plage horaire active : reprise de la compression.",
+                        eta_seconds=job.estimate.get("seconds") if job.estimate else None,
+                    )
+                    self._persist(job)
+            else:
+                next_start = schedule_module.next_window_start(now, schedule.windows)
+                next_iso = next_start.isoformat() if next_start else None
+                if "schedule" not in job.pause_reasons:
+                    job.pause("schedule", next_iso)
+                    job.update_progress(
+                        message=(
+                            "Hors plage horaire : pause automatique"
+                            + (
+                                f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
+                                if next_start else ""
+                            )
+                        ),
+                        eta_seconds=None,
+                    )
+                    self._persist(job)
+                elif job.next_resume_at != next_iso:
+                    job.next_resume_at = next_iso
+                    job.seq += 1
+
     def _run_ffmpeg(self, job: Job, command: list[str], duration: float, on_progress=None) -> tuple[int, list[str]]:
         # Priorité réduite : même à 100 % de threads, le NAS reste réactif.
         nice = shutil.which("nice")
@@ -1010,7 +1209,7 @@ class JobManager:
     # -- test qualité -----------------------------------------------------
     def start_test(self, request: TestRequest) -> Job:
         label = f"Test qualité — {Path(request.path).name}"
-        job = self._new_job("test", label)
+        job = self._new_job("test", label, {"path": request.path})
         self._persist(job)
         thread = threading.Thread(
             target=self._run_test, args=(job, request), daemon=True,

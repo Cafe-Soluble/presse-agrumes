@@ -85,3 +85,77 @@ côte à côte. Comparer les débits, pas les tailles brutes.
 
 **Conséquences** : l'aperçu original est un proxy (CRF 18), pas le fichier
 strictement bit-à-bit ; c'est indiqué dans l'interface et la documentation.
+
+## ADR-008 — Authentification par mot de passe généré
+
+**Contexte** : l'outil donne accès à des opérations destructrices et sera souvent
+lancé sur un NAS sans reverse proxy.
+
+**Décision** : HTTP Basic actif par défaut, utilisateur `agrumes`, mot de passe
+temporaire généré au démarrage et affiché uniquement en console. `PA_AUTH_PASSWORD`
+permet un mot de passe fixe ; `PA_AUTH_DISABLED=1` est réservé au développement.
+
+**Conséquences** : protection immédiate sans configuration, mais mot de passe à
+récupérer dans les logs systemd. Pour un accès hors LAN, un reverse proxy TLS
+reste nécessaire.
+
+## ADR-009 — Scan de ports au démarrage
+
+**Contexte** : 8080 est fréquemment occupé sur un NAS (autres applications).
+
+**Décision** : scanner les ports suivants (8080 → 8081 → …) avec un bind TCP et
+afficher l'URL réelle. `--strict-port` permet d'échouer volontairement si le port
+demandé est occupé.
+
+**Conséquences** : démarrage sans conflit et URL imprimée en console. Le
+frontend utilise uniquement des chemins relatifs, donc fonctionne sur n'importe
+quel port.
+
+## ADR-010 — Pause par SIGSTOP plutôt qu'annulation
+
+**Contexte** : certains encodages durent plusieurs heures ; annuler perdrait le
+travail et les fichiers temporaires.
+
+**Décision** : la pause suspend les processus ffmpeg (`SIGSTOP`) et la reprise
+les relance (`SIGCONT`). Les workers attendent avant de démarrer un nouveau
+fichier. L'annulation reste distincte.
+
+**Conséquences** : reprise exacte au même point, mais les processus suspendus
+occupent toujours leur mémoire. Sur un NAS, la planification horaire utilise ce
+même mécanisme.
+
+## ADR-011 — Planification par plages autorisées
+
+**Contexte** : l'utilisateur veut limiter les compressions à certaines heures ou
+jours, avec reprise automatique.
+
+**Décision** : fenêtres `days/start/end` évaluées toutes les 15 s ; hors plage,
+pause `schedule`, `next_resume_at` affiché. Les heures sont celles du serveur.
+
+**Conséquences** : simple et prévisible, précision de 15 s. Les changements de
+fuseau/horloge pendant un job sont pris en compte à la prochaine évaluation.
+
+## ADR-012 — Bannière des jobs actifs et reprise après navigation
+
+**Contexte** : fermer le navigateur ne doit pas faire perdre la vision du travail
+en cours.
+
+**Décision** : endpoint `/api/jobs/active` (mémoire), polling 2,5 s par le
+frontend, bannière globale sous le header et réouverture automatique du panneau
+de suivi via `context.scan_id` au retour sur le workspace.
+
+**Conséquences** : les jobs restent visibles tant que le serveur tourne. Après un
+redémarrage du service, les jobs sont marqués `interrupted` et ne sont plus
+actifs (l'historique les conserve).
+
+## ADR-013 — SemVer + tags git annotés
+
+**Contexte** : besoin de savoir quelle version tourne sur le NAS et de revenir à
+une release stable.
+
+**Décision** : SemVer, versions synchronisées dans les fichiers Python/Node/
+pyproject/CHANGELOG, tags `vX.Y.Z`, script `scripts/release.sh` qui vérifie la
+cohérence, les tests et le build avant de taguer.
+
+**Conséquences** : releases traçables et vérifiables via `/api/health`. Le build
+frontend reste versionné pour un déploiement sans Node.

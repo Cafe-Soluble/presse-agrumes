@@ -28,21 +28,32 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 ## Fonctionnalités
 
 - **Analyse récursive** d'un dossier avec progression SSE en temps réel, ETA, annulation et reprise après erreur.
+- **Accès protégé au démarrage** : un mot de passe temporaire est généré et affiché dans la console ; HTTP Basic protège toute l'interface.
+- **Scan de ports au lancement** : si 8080 est occupé, l'application trouve automatiquement le port libre suivant et affiche l'URL réelle.
 - **Détection des bons candidats** : codec, bitrate, résolution, durée, HDR, 10 bits, bits par pixel, gain estimé de façon volontairement pessimiste.
 - **Séries regroupées** : un dossier marqué « séries » devient une seule ligne par saison (ou par série), avec le détail des épisodes à la demande. Aucune heuristique imposée : c'est vous qui indiquez les dossiers de séries.
-- **Tri, recherche, filtres et sélection** par fichier ou par pack complet.
+- **Tri, recherche, filtres et sélection** par fichier ou par pack complet — en cliquant sur la ligne entière ou sur la case à cocher.
 - **Réglages AV1** : SVT-AV1 / libaom / VAAPI, preset, CRF, 8 ou 10 bits, audio copié ou réencodé, MKV/MP4/WebM, sous-titres.
 - **Gestion des originaux** : conserver, supprimer après vérification ffprobe, ou déplacer vers une corbeille en conservant l'arborescence.
 - **Destination des fichiers compressés** : même dossier avec suffixe, remplacement sur place, ou dossier personnalisé avec miroir de l'arborescence.
+- **Pause / reprise** d'une compression en cours (les processus ffmpeg sont suspendus avec `SIGSTOP`, aucun travail n'est perdu).
+- **Planification horaire** : choisissez des plages (jours + heures) ; hors plage, le job se met en pause et reprend automatiquement.
+- **Bannière de tâche active** en haut de toutes les pages : progression, ETA, vitesse, pause/reprise et accès au suivi, même après fermeture du navigateur.
 - **Estimation matérielle** : détection CPU/RAM/GPU, benchmark ffmpeg réel, ETA selon le pourcentage de ressources alloué et le nombre d'encodages simultanés.
 - **Test qualité** : extrait de 20 s (configurable), encodage AV1 et comparaison côte à côte dans le navigateur, avec téléchargement de l'original brut.
-- **Gestion des permissions** : dossiers illisibles, fichiers en erreur, sorties non inscriptibles, espace disque insuffisant et conflits de noms sont signalés avant lancement.
+- **Gestion des erreurs explicite** : fichier vide, fichier corrompu, permissions, format inconnu et dossiers illisibles sont classés et ignorés sans bloquer le scan.
 - **Garde-fous** : jamais de recompression d'un fichier déjà AV1, sortie écrite dans un fichier temporaire puis renommée atomiquement, original supprimé seulement après validation de la sortie.
 - **Interface React** responsive, thème sombre, navigation entre compression, historique et matériel.
 
 | Test qualité | Matériel & ETA |
 | --- | --- |
 | ![Test qualité](docs/screenshots/test-quality.png) | ![Matériel](docs/screenshots/hardware.png) |
+
+| Tâche active, pause et reprise | Planification horaire |
+| --- | --- |
+| ![Tâche active](docs/screenshots/workspace.png) | ![Planification](docs/screenshots/schedule.png) |
+
+![Gestion des erreurs](docs/screenshots/error-handling.png)
 
 | Historique |
 | --- |
@@ -85,22 +96,30 @@ cd presse-agrumes
 
 `run.sh` crée le venv, installe les dépendances, compile le frontend s'il manque, puis démarre le serveur.
 
-Ouvrez ensuite :
+Au démarrage, la console affiche :
 
 ```text
-http://<IP-du-serveur>:8080
+Port               : 8080  (ou 8081 si 8080 est occupé)
+Adresse(s) locale(s) :
+  http://192.168.1.50:8080
+Authentification   : HTTP Basic
+Utilisateur        : agrumes
+Mot de passe       : 8beafed746df… (temporaire, régénéré à chaque démarrage)
 ```
 
-Exemple : `http://192.168.1.50:8080`.
+Ouvrez l'URL affichée, puis connectez-vous avec l'utilisateur `agrumes` et le mot de passe affiché. Le navigateur peut demander ces identifiants via sa boîte de dialogue HTTP Basic.
+
+> Le port est scanné automatiquement : si `8080` est déjà utilisé sur le NAS, l'application bascule sur `8081`, `8082`, etc. L'URL exacte est toujours affichée en console.
 
 ### Premier usage
 
-1. Choisissez le dossier à analyser (navigateur de dossiers intégré ou chemin direct).
-2. Si le dossier contient des séries, ajoutez-le dans **Dossiers de séries**.
-3. Lancez l'analyse, triez par gain potentiel, sélectionnez des fichiers ou des packs.
-4. Cliquez sur **Test** pour vérifier la qualité sur un extrait.
-5. Ajustez les réglages, choisissez le devenir des originaux et la destination.
-6. Lancez la compression, suivez la progression et le journal.
+1. Connectez-vous avec le mot de passe affiché dans la console.
+2. Choisissez le dossier à analyser (navigateur de dossiers intégré ou chemin direct).
+3. Si le dossier contient des séries, ajoutez-le dans **Dossiers de séries**.
+4. Lancez l'analyse, triez par gain potentiel, sélectionnez des fichiers ou des packs (toute la ligne est cliquable).
+5. Cliquez sur **Test** pour vérifier la qualité sur un extrait.
+6. Ajustez les réglages, la planification, le devenir des originaux et la destination.
+7. Lancez la compression, suivez la progression et le journal. Vous pouvez fermer le navigateur : le travail continue et une bannière reste visible au retour.
 
 ## Installation sur un NAS
 
@@ -157,15 +176,16 @@ Toutes les options sont des variables d'environnement. Un exemple complet est fo
 | Variable | Défaut | Description |
 | --- | --- | --- |
 | `PA_HOST` | `0.0.0.0` | Adresse d'écoute. |
-| `PA_PORT` | `8080` | Port HTTP. |
+| `PA_PORT` | `8080` | Port préféré. Un port libre est cherché automatiquement si occupé. |
 | `PA_DATA_DIR` | `<projet>/data` | Scans, jobs, tests, benchmarks. |
 | `PA_ALLOWED_ROOTS` | `/` | Racines accessibles, séparées par `:`. **À restreindre** (`/mnt/media:/srv/media`). |
-| `PA_AUTH_USER` | vide | Active HTTP Basic si un utilisateur est défini. |
-| `PA_AUTH_PASSWORD` | vide | Mot de passe HTTP Basic. |
+| `PA_AUTH_USER` | `agrumes` | Utilisateur HTTP Basic. |
+| `PA_AUTH_PASSWORD` | généré | Mot de passe fixe optionnel. S'il est absent, un mot de passe temporaire est généré et affiché à chaque lancement. |
+| `PA_AUTH_DISABLED` | `0` | `1` pour désactiver l'authentification (développement local uniquement). |
 | `FFMPEG_BIN` | auto | Chemin absolu vers ffmpeg (utile en systemd). |
 | `FFPROBE_BIN` | auto | Chemin absolu vers ffprobe. |
 
-Exemple :
+Exemple avec mot de passe fixe (recommandé pour un service systemd stable) :
 
 ```bash
 PA_ALLOWED_ROOTS=/mnt/media:/srv/media \
@@ -239,12 +259,30 @@ Depuis une ligne de résultat (fichier ou pack) :
 
 Le gain affiché est calculé sur le **débit** (taille/durée) entre l'extrait brut et l'extrait AV1. La découpe sans réencodage peut inclure quelques secondes supplémentaires (calage sur image-clé) ; le texte de comparaison le précise.
 
-### 7. Compression
+### 7. Compression, pause et reprise
 
 - Le préflight vérifie les chemins, les permissions, les conflits de noms et l'espace disque **avant** de lancer ffmpeg.
 - La sortie est écrite dans un fichier temporaire `.pa-tmp-*`, validée par ffprobe, puis renommée atomiquement.
 - La progression affiche le fichier courant, le pourcentage, la vitesse, les fps, l'ETA, le journal ffmpeg et le résultat par fichier.
+- **Pause** : le bouton met le job en pause et suspend les processus ffmpeg (`SIGSTOP`). Aucun fichier temporaire n'est perdu. **Reprendre** continue exactement au même point.
+- Fermer le navigateur n'arrête pas le job. Au retour, une **bannière en haut de page** réaffiche la tâche active, sa progression, son ETA, sa vitesse et les boutons pause/reprise. Le panneau de suivi est également rouvert automatiquement.
 - L'historique des analyses permet de reprendre un scan sans rescanner le NAS.
+
+### 8. Planification horaire
+
+Dans **Réglages de compression → Planification** :
+
+- activez « Compresser uniquement sur des plages horaires » ;
+- ajoutez une ou plusieurs plages avec les jours, l'heure de début et l'heure de fin ;
+- une plage `22:00 → 07:00` traverse minuit ;
+- `00:00 → 00:00` signifie toute la journée ;
+- hors plage, le job se met en pause automatiquement et reprend au début de la plage suivante.
+
+Les heures sont celles du serveur (le fuseau est affiché dans l'interface). La planification est évaluée toutes les 15 secondes.
+
+### 9. Fichiers en erreur
+
+Les fichiers vides, corrompus, illisibles ou sans flux vidéo sont classés et affichés dans **Fichiers / dossiers en erreur** avec un libellé clair (ex. « Fichier vide », « Format illisible », « Permission refusée ») et un conseil. Ils sont **ignorés automatiquement** par l'analyse et la compression ; le reste du scan continue.
 
 ## Comment fonctionne l'estimation du gain
 
@@ -253,8 +291,10 @@ Le facteur de gain dépend du codec source (H.264, HEVC, MPEG-2, etc.), du bits 
 ## Sécurité et permissions
 
 - **Réseau local uniquement** : l'application peut lire, déplacer et supprimer des fichiers. N'exposez jamais le port directement sur Internet.
+- **Mot de passe au démarrage** : sans `PA_AUTH_PASSWORD`, un mot de passe temporaire est généré et affiché en console. Il change à chaque redémarrage. Pour un mot de passe stable, définissez `PA_AUTH_PASSWORD` (systemd).
 - `PA_ALLOWED_ROOTS` limite les chemins accessibles. Le navigateur de dossiers ne peut pas sortir de ces racines.
-- `PA_AUTH_USER` / `PA_AUTH_PASSWORD` activent HTTP Basic. Pour du TLS, utilisez un reverse proxy.
+- `PA_AUTH_USER` / `PA_AUTH_PASSWORD` personnalisent HTTP Basic (utilisateur et mot de passe fixe). Pour du TLS, utilisez un reverse proxy.
+- `PA_AUTH_DISABLED=1` ne doit servir qu'au développement local : l'interface est alors accessible sans mot de passe.
 - Les commandes ffmpeg sont construites sans shell, avec des listes d'arguments. Aucun nom de fichier n'est interprété par un shell.
 - Les liens symboliques ne sont pas suivis pendant le scan (évite les boucles et les sorties de racine).
 - L'original n'est jamais supprimé avant la validation ffprobe de la sortie.
@@ -270,11 +310,13 @@ presse-agrumes/
 │   ├── jobs.py              # scan / compression / test, progression, annulation
 │   ├── media.py             # ffprobe, estimation, commandes ffmpeg
 │   ├── series.py            # regroupement des saisons/séries
+│   ├── schedule.py          # plages horaires, calcul de la prochaine reprise
+│   ├── network.py           # scan de ports, adresses IP locales
 │   ├── hardware.py          # détection matériel + benchmark + ETA
 │   ├── paths.py             # garde-fous chemins, navigation, permissions
 │   ├── models.py            # schémas Pydantic
 │   ├── storage.py           # JSON atomique
-│   └── config.py            # variables d'environnement, binaires
+│   └── config.py            # variables d'environnement, binaires, auth
 ├── frontend/                # SPA React + TypeScript
 │   ├── src/components/ui/   # composants shadcn/ui
 │   ├── src/pages/           # workspace, historique, matériel
@@ -282,9 +324,10 @@ presse-agrumes/
 │   ├── e2e/                 # test de fumée Playwright
 │   └── dist/                # build versionné (démarrage sans Node)
 ├── tests/                   # pytest (unitaires + API + encodages réels)
-├── docs/                    # architecture, API, développement, journal
+├── docs/                    # architecture, API, développement, releases, journal
 ├── deploy/                  # unité systemd + exemple d'environnement
 ├── scripts/dev.sh           # backend reload + Vite
+├── scripts/release.sh       # vérifications + tag git de release
 ├── analyze_videos.py        # script CLI historique (référence)
 ├── run.sh                   # démarrage clé en main
 └── data/                    # généré, ignoré par git
@@ -297,7 +340,8 @@ L'API REST est documentée automatiquement sur [`/docs`](http://localhost:8080/d
 - `POST /api/scans` puis `GET /api/jobs/{id}/events` (SSE) ;
 - `GET /api/scans/{id}` ;
 - `POST /api/preflight` ;
-- `POST /api/compressions` ;
+- `POST /api/compressions` (avec `schedule` optionnel) ;
+- `GET /api/jobs/active`, `POST /api/jobs/{id}/pause`, `POST /api/jobs/{id}/resume` ;
 - `POST /api/tests` puis `GET /api/tests/{id}/meta` ;
 - `GET /api/hardware`, `POST /api/hardware/benchmark` ;
 - `GET /api/browse?path=…`.
@@ -327,7 +371,60 @@ npm run test:e2e   # nécessite un serveur lancé (ou Playwright le démarre)
 
 Le test de fumée Playwright vérifie le chargement de la SPA, la navigation et l'absence d'erreurs console. Sur une VM Debian sans interface graphique, il faut installer Chromium et ses bibliothèques système ; c'est possible en headless (voir `docs/DEVELOPMENT.md`).
 
+## Versionning et releases
+
+Le versionning suit **SemVer** (`MAJOR.MINOR.PATCH`) et chaque release est taguée
+dans git :
+
+```bash
+git tag -a v0.2.0 -m "Presse-Agrumes v0.2.0"
+git push origin v0.2.0
+```
+
+Les versions sont synchronisées entre :
+
+- `presse_agrumes/__init__.py` (`__version__`) ;
+- `presse_agrumes/config.py` (`VERSION`) ;
+- `pyproject.toml` ;
+- `frontend/package.json` (+ lock) ;
+- `CHANGELOG.md` ;
+- le tag git `vX.Y.Z`.
+
+Le script `scripts/release.sh X.Y.Z` vérifie la cohérence, lance les tests et le
+build, puis crée le tag annoté. Voir [`docs/RELEASES.md`](docs/RELEASES.md).
+
+Tags existants : `v0.1.0` (première version), `v0.2.0` (auth, ports, pause,
+planification, bannière active, erreurs enrichies).
+
 ## Dépannage
+
+### « Où est le mot de passe ? »
+
+Il est affiché **dans la console au démarrage** :
+
+```text
+Utilisateur  : agrumes
+Mot de passe : 8beafed746df… (temporaire, régénéré à chaque démarrage)
+```
+
+Sous systemd :
+
+```bash
+sudo journalctl -u presse-agrumes -n 50 | grep -A2 "Mot de passe"
+```
+
+Pour un mot de passe stable, définissez `PA_AUTH_PASSWORD` dans l'environnement
+du service. Si vous avez perdu le mot de passe temporaire, redémarrez le service :
+un nouveau sera généré et affiché.
+
+### Le port 8080 est déjà utilisé
+
+C'est prévu : l'application scanne les ports suivants et affiche celui qu'elle a
+choisi (`8081`, `8082`, …). Pour imposer un port et échouer en cas de conflit :
+
+```bash
+./run.sh --port 9000 --strict-port
+```
 
 ### « ffmpeg est introuvable » / « Aucun encodeur AV1 »
 

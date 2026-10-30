@@ -16,6 +16,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import type {
   AppConfig,
+  CompressionSchedule,
   CompressionSettings,
   Hardware,
   OriginalOptions,
@@ -43,6 +44,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { StepBadge } from "@/components/page";
+import { ScheduleEditor } from "@/components/schedule-editor";
 
 interface CompressionPanelProps {
   config?: AppConfig;
@@ -59,6 +61,9 @@ interface CompressionPanelProps {
   onResourcePercentChange: (value: number) => void;
   concurrency: number;
   onConcurrencyChange: (value: number) => void;
+  schedule: CompressionSchedule;
+  onScheduleChange: (schedule: CompressionSchedule) => void;
+  timezone?: string;
   preflight?: PreflightResult;
   preflightLoading: boolean;
   preflightError?: string;
@@ -82,6 +87,9 @@ export function CompressionPanel({
   onResourcePercentChange,
   concurrency,
   onConcurrencyChange,
+  schedule,
+  onScheduleChange,
+  timezone,
   preflight,
   preflightLoading,
   preflightError,
@@ -318,6 +326,12 @@ export function CompressionPanel({
                 </div>
               </div>
             </section>
+
+            <ScheduleEditor
+              schedule={schedule}
+              onChange={onScheduleChange}
+              timezone={timezone}
+            />
           </div>
 
           <div className="space-y-6">

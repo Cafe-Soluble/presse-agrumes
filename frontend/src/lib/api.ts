@@ -81,6 +81,11 @@ export const api = {
     }),
   testMeta: (testId: string) => request<TestMeta>(`/api/tests/${testId}/meta`),
   getJob: (jobId: string) => request<JobSnapshot>(`/api/jobs/${jobId}`),
+  activeJobs: () => request<{ jobs: JobSnapshot[] }>("/api/jobs/active"),
+  pauseJob: (jobId: string) =>
+    request<{ paused: boolean }>(`/api/jobs/${jobId}/pause`, { method: "POST" }),
+  resumeJob: (jobId: string) =>
+    request<{ resumed: boolean }>(`/api/jobs/${jobId}/resume`, { method: "POST" }),
   cancelJob: (jobId: string) =>
     request<{ cancelled: boolean }>(`/api/jobs/${jobId}/cancel`, { method: "POST" }),
   listJobs: (limit = 30) => request<{ jobs: JobSnapshot[] }>(`/api/jobs?limit=${limit}`),

@@ -89,6 +89,51 @@ export function recommendationMeta(recommendation: Recommendation) {
   }
 }
 
+export function errorCodeLabel(code: string | null | undefined) {
+  switch (code) {
+    case "empty_file":
+      return "Fichier vide";
+    case "invalid_data":
+      return "Format illisible";
+    case "permission_denied":
+      return "Permission refusée";
+    case "not_found":
+      return "Fichier introuvable";
+    case "timeout":
+      return "Délai dépassé";
+    case "no_video":
+      return "Pas de flux vidéo";
+    case "stat_error":
+      return "Erreur d'accès";
+    default:
+      return "Erreur";
+  }
+}
+
+export function pauseReasonLabel(reason: string) {
+  switch (reason) {
+    case "manual":
+      return "pause manuelle";
+    case "schedule":
+      return "hors plage horaire";
+    default:
+      return reason;
+  }
+}
+
+export function formatDateTime(iso: string | null | undefined) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function itemFileCount(item: ScanItem) {
   return item.kind === "series" ? item.episode_count ?? 1 : 1;
 }

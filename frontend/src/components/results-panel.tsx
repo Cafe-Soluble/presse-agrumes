@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type MouseEvent } from "react";
 import {
   AlertTriangle,
   ChevronDown,
@@ -10,10 +10,11 @@ import {
   Search,
   Tv,
 } from "lucide-react";
-import type { CompressionSettings, Hardware, Scan, ScanItem } from "@/lib/types";
+import type { CompressionSettings, Hardware, Scan, ScanError, ScanItem } from "@/lib/types";
 import { estimateSeconds, selectionStats } from "@/lib/estimate";
 import {
   cn,
+  errorCodeLabel,
   formatBytes,
   formatDuration,
   formatEta,
@@ -69,7 +70,7 @@ export function ResultsPanel({
   const [limit, setLimit] = useState(60);
 
   const errors = useMemo(() => {
-    const map = new Map<string, { path: string; error: string }>();
+    const map = new Map<string, ScanError>();
     [...scan.walk_errors, ...scan.errors].forEach((entry) => {
       if (entry?.path) map.set(entry.path, entry);
     });
@@ -260,14 +261,21 @@ export function ResultsPanel({
           <details className="rounded-lg border border-destructive/25 bg-destructive/[0.04]">
             <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-red-200">
               <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5" />
-              Fichiers / dossiers en erreur ({errors.length})
+              Fichiers / dossiers en erreur ({errors.length}) — ignorés automatiquement
             </summary>
-            <div className="max-h-64 space-y-1 overflow-auto px-4 pb-3">
+            <div className="max-h-64 space-y-2 overflow-auto px-4 pb-3">
               {errors.map((entry) => (
-                <div key={entry.path} className="rounded border-t border-destructive/10 py-1.5 text-[11px]">
-                  <span className="break-all font-mono text-red-300">{entry.path}</span>
-                  <span className="mx-1 text-muted-foreground">—</span>
-                  <span className="text-red-200/80">{entry.error}</span>
+                <div key={entry.path} className="rounded border-t border-destructive/10 py-2 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="destructive" className="rounded px-1.5 py-0 text-[9px]">
+                      {errorCodeLabel(entry.error_code)}
+                    </Badge>
+                    <span className="break-all font-mono text-red-300">{entry.path}</span>
+                  </div>
+                  <p className="mt-1 text-red-200/90">{entry.error}</p>
+                  {entry.error_hint && (
+                    <p className="mt-0.5 text-muted-foreground">{entry.error_hint}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -344,13 +352,22 @@ function ItemRow({
     item.relative_path,
   ].filter(Boolean);
 
+  const handleRowClick = (event: MouseEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("button, input, a, summary, details, label, video")) return;
+    onToggle();
+  };
+
   return (
     <div
       className={cn(
         "grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-lg border p-3.5 transition-colors sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center",
         selected ? "border-primary/50 bg-primary/[0.055]" : "border-border/60 bg-secondary/20 hover:border-border",
-        disabled && "opacity-60",
+        disabled ? "opacity-60" : "cursor-pointer",
       )}
+      onClick={handleRowClick}
+      title={disabled ? undefined : "Cliquer pour sélectionner"}
     >
       <div className="flex h-9 items-center">
         <Checkbox checked={selected} disabled={disabled} onCheckedChange={onToggle} aria-label={`Sélectionner ${item.name}`} />

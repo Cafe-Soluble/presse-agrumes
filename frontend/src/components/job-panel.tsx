@@ -1,17 +1,29 @@
 import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Clock3,
   Loader2,
+  Pause,
+  Play,
   RefreshCw,
   ScrollText,
   Square,
   XCircle,
 } from "lucide-react";
 import type { CompressionResult, JobSnapshot } from "@/lib/types";
-import { cn, formatBytes, formatDuration, formatEta, formatNumber, formatPercent } from "@/lib/utils";
+import {
+  cn,
+  formatBytes,
+  formatDateTime,
+  formatDuration,
+  formatEta,
+  formatNumber,
+  formatPercent,
+  pauseReasonLabel,
+} from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -24,22 +36,38 @@ interface JobPanelProps {
   onCancel: () => void;
   onRescan: () => void;
   onDismiss: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  pausing?: boolean;
+  resuming?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
   queued: "en attente",
   running: "en cours",
+  paused: "en pause",
   done: "terminé",
   error: "échec",
   cancelled: "annulé",
   interrupted: "interrompu",
 };
 
-export function JobPanel({ job, onCancel, onRescan, onDismiss }: JobPanelProps) {
+export function JobPanel({
+  job,
+  onCancel,
+  onRescan,
+  onDismiss,
+  onPause,
+  onResume,
+  pausing,
+  resuming,
+}: JobPanelProps) {
   const progress = job.progress;
-  const running = job.status === "running" || job.status === "queued";
+  const paused = job.status === "paused";
+  const active = job.status === "running" || job.status === "queued" || paused;
   const result = job.result as CompressionResult | undefined;
   const logsRef = useRef<HTMLPreElement>(null);
+  const pauseReasons = job.pause_reasons ?? [];
 
   useEffect(() => {
     const node = logsRef.current;
@@ -51,23 +79,57 @@ export function JobPanel({ job, onCancel, onRescan, onDismiss }: JobPanelProps) 
     <Card className="glass-panel" id="job">
       <CardHeader className="gap-3 pb-4">
         <div className="flex flex-wrap items-start gap-3">
-          <StepBadge step={job.status === "done" ? "✓" : job.status === "error" ? "!" : <Loader2 className="h-4 w-4 animate-spin" />} />
+          <StepBadge
+            step={
+              job.status === "done"
+                ? "✓"
+                : job.status === "error"
+                  ? "!"
+                  : paused
+                    ? <Pause className="h-4 w-4" />
+                    : job.status === "running"
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : "…"
+            }
+          />
           <div className="min-w-0 flex-1">
             <CardTitle className="flex flex-wrap items-center gap-2">
-              {job.kind === "test" ? "Test qualité" : "Compression en cours"}
-              <Badge variant={job.status === "done" ? "success" : job.status === "error" ? "destructive" : "secondary"}>
+              {job.kind === "test" ? "Test qualité" : "Compression"}
+              <Badge
+                variant={
+                  job.status === "done"
+                    ? "success"
+                    : job.status === "error"
+                      ? "destructive"
+                      : paused
+                        ? "warning"
+                        : "secondary"
+                }
+              >
                 {statusLabels[job.status] ?? job.status}
               </Badge>
             </CardTitle>
             <CardDescription className="break-all">{job.label}</CardDescription>
           </div>
-          <div className="flex gap-2">
-            {running && (
+          <div className="flex flex-wrap gap-2">
+            {job.kind === "compress" && job.status === "running" && (
+              <Button type="button" variant="outline" size="sm" onClick={onPause} disabled={pausing}>
+                {pausing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause className="h-3.5 w-3.5" />}
+                Pause
+              </Button>
+            )}
+            {job.kind === "compress" && paused && pauseReasons.includes("manual") && (
+              <Button type="button" variant="outline" size="sm" onClick={onResume} disabled={resuming}>
+                {resuming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                Reprendre
+              </Button>
+            )}
+            {active && (
               <Button type="button" variant="outline" size="sm" onClick={onCancel}>
                 <Square className="h-3.5 w-3.5" /> Annuler
               </Button>
             )}
-            {!running && (
+            {!active && (
               <Button type="button" variant="ghost" size="sm" onClick={onDismiss}>
                 Fermer
               </Button>
@@ -85,7 +147,8 @@ export function JobPanel({ job, onCancel, onRescan, onDismiss }: JobPanelProps) 
         <div className="space-y-2 rounded-lg border border-border/60 bg-background/40 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="flex min-w-0 items-center gap-2">
-              {running && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
+              {job.status === "running" && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
+              {paused && <Pause className="h-4 w-4 shrink-0 text-warning" />}
               <span className="truncate">{progress.message || "En cours…"}</span>
             </span>
             <span className="flex shrink-0 items-center gap-2 font-mono text-xs text-muted-foreground">
@@ -102,6 +165,21 @@ export function JobPanel({ job, onCancel, onRescan, onDismiss }: JobPanelProps) 
             <span>{progress.percent ? formatPercent(progress.percent) : ""}</span>
           </div>
         </div>
+
+        {paused && (
+          <Alert variant="warning" className="py-2">
+            <CalendarClock className="h-4 w-4" />
+            <AlertDescription>
+              {pauseReasons.length > 0
+                ? pauseReasons.map(pauseReasonLabel).join(" + ")
+                : "Compression en pause"}
+              {job.next_resume_at
+                ? ` — reprise automatique prévue le ${formatDateTime(job.next_resume_at)}`
+                : ""}
+              . Les processus ffmpeg sont suspendus, aucun travail n'est perdu.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {job.error && (
           <Alert variant="destructive">
@@ -170,7 +248,7 @@ export function JobPanel({ job, onCancel, onRescan, onDismiss }: JobPanelProps) 
           </div>
         )}
 
-        {running && job.estimate && (
+        {active && job.estimate && (
           <p className="text-[11px] text-muted-foreground">
             Estimation initiale : {formatEta(job.estimate.seconds)} · {job.estimate.threads_per_job} thread(s)
             par encodage.

@@ -37,6 +37,16 @@ export function useScans() {
   });
 }
 
+export function useActiveJobs() {
+  return useQuery({
+    queryKey: ["jobs", "active"],
+    queryFn: api.activeJobs,
+    select: (data) => data.jobs,
+    refetchInterval: 2500,
+    staleTime: 0,
+  });
+}
+
 export function useScan(scanId: string | null) {
   return useQuery({
     queryKey: ["scan", scanId],

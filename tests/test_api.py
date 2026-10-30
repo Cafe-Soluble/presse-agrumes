@@ -332,3 +332,115 @@ def test_av1_files_are_never_recompressed(client, media_root: Path):
     assert preflight.status_code == 200
     assert preflight.json()["file_count"] == 0
     assert any("AV1" in warning["warning"] for warning in preflight.json()["warnings"])
+
+
+def test_active_jobs_and_pause_api(client):
+    from presse_agrumes.jobs import Job, manager
+
+    job = Job("api-pause-test", "compress", "test de pause", {"scan_id": "fake"})
+    job.set_status("running")
+    with manager.lock:
+        manager.jobs[job.id] = job
+    try:
+        active = client.get("/api/jobs/active").json()["jobs"]
+        assert any(item["id"] == job.id for item in active)
+        paused = client.post(f"/api/jobs/{job.id}/pause")
+        assert paused.status_code == 200, paused.text
+        snapshot = client.get(f"/api/jobs/{job.id}").json()
+        assert snapshot["status"] == "paused"
+        assert "manual" in snapshot["pause_reasons"]
+        resumed = client.post(f"/api/jobs/{job.id}/resume")
+        assert resumed.status_code == 200, resumed.text
+        snapshot = client.get(f"/api/jobs/{job.id}").json()
+        assert snapshot["status"] == "running"
+    finally:
+        job.request_cancel()
+        with manager.lock:
+            manager.jobs.pop(job.id, None)
+
+
+def test_scheduled_compression_waits_outside_window(client, media_root: Path):
+    import datetime as dt
+
+    source = media_root / "e-schedule.mp4"
+    make_video(source, duration=3, frequency=1100)
+    scan = scan_root(client, media_root)
+    item = find_item(scan, source.name)
+    target_day = (dt.datetime.now().astimezone().weekday() + 3) % 7
+    response = client.post(
+        "/api/compressions",
+        json={
+            "scan_id": scan["id"],
+            "item_ids": [item["id"]],
+            "settings": SETTINGS,
+            "output": {**OUTPUT_NEW, "suffix": "scheduled"},
+            "originals": KEEP,
+            "resource_percent": 70,
+            "concurrency": 1,
+            "verify": True,
+            "schedule": {
+                "enabled": True,
+                "windows": [
+                    {"days": [target_day], "start": "00:00", "end": "23:59"}
+                ],
+            },
+        },
+    )
+    assert response.status_code == 200, response.text
+    job_id = response.json()["id"]
+    import time
+
+    deadline = time.time() + 20
+    snapshot = {}
+    while time.time() < deadline:
+        snapshot = client.get(f"/api/jobs/{job_id}").json()
+        if snapshot["status"] == "paused":
+            break
+        if snapshot["status"] in {"done", "error", "cancelled"}:
+            break
+        time.sleep(0.2)
+    assert snapshot["status"] == "paused", snapshot
+    assert "schedule" in snapshot["pause_reasons"]
+    assert snapshot["next_resume_at"]
+    assert not (media_root / "e-schedule.scheduled.mkv").exists()
+    cancel = client.post(f"/api/jobs/{job_id}/cancel")
+    assert cancel.status_code == 200
+    final = wait_job(client, job_id)
+    assert final["status"] == "cancelled"
+
+
+def test_manual_pause_resume_real_compression(client, media_root: Path):
+    import time
+
+    source = media_root / "f-pause.mp4"
+    make_video(source, duration=4, frequency=1200)
+    scan = scan_root(client, media_root)
+    item = find_item(scan, source.name)
+    response = client.post(
+        "/api/compressions",
+        json={
+            "scan_id": scan["id"],
+            "item_ids": [item["id"]],
+            "settings": {**SETTINGS, "preset": 4},
+            "output": {**OUTPUT_NEW, "suffix": "paused"},
+            "originals": KEEP,
+            "resource_percent": 50,
+            "concurrency": 1,
+            "verify": True,
+        },
+    )
+    assert response.status_code == 200, response.text
+    job_id = response.json()["id"]
+    pause = client.post(f"/api/jobs/{job_id}/pause")
+    if pause.status_code == 409:
+        pytest.skip("compression terminée avant la demande de pause")
+    assert pause.status_code == 200, pause.text
+    snapshot = client.get(f"/api/jobs/{job_id}").json()
+    assert snapshot["status"] == "paused"
+    time.sleep(0.3)
+    assert client.get(f"/api/jobs/{job_id}").json()["status"] == "paused"
+    resume = client.post(f"/api/jobs/{job_id}/resume")
+    assert resume.status_code == 200, resume.text
+    final = wait_job(client, job_id)
+    assert final["status"] == "done", final
+    assert (media_root / "f-pause.paused.mkv").exists()

@@ -8,11 +8,18 @@ export default defineConfig({
     baseURL: process.env.PA_URL ?? "http://127.0.0.1:8080",
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
+    httpCredentials:
+      process.env.PA_AUTH_USER && process.env.PA_AUTH_PASSWORD
+        ? {
+            username: process.env.PA_AUTH_USER,
+            password: process.env.PA_AUTH_PASSWORD,
+          }
+        : undefined,
   },
   webServer: process.env.PA_URL
     ? undefined
     : {
-        command: ".venv/bin/python -m presse_agrumes --port 8080",
+        command: "PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --port 8080",
         cwd: "..",
         url: "http://127.0.0.1:8080/api/health",
         reuseExistingServer: true,

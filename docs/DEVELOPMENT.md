@@ -49,11 +49,20 @@ systemd avec un `PATH` minimal (mais `FFMPEG_BIN` reste plus explicite).
 
 ## Lancer en développement
 
+L'authentification est active par défaut (mot de passe généré affiché en
+console). Pour éviter la boîte de dialogue HTTP Basic en développement :
+
+```bash
+PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
+```
+
+Ou un mot de passe fixe : `PA_AUTH_PASSWORD=dev`.
+
 Deux terminaux :
 
 ```bash
 # Terminal 1 — backend avec reload
-.venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
+PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload
 
 # Terminal 2 — Vite (proxy /api vers 8080)
 cd frontend
@@ -137,12 +146,19 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Le test démarre le backend automatiquement (`webServer`) s'il ne tourne pas
-déjà. Sinon :
+Le test démarre le backend automatiquement (`webServer`) avec
+`PA_AUTH_DISABLED=1` s'il ne tourne pas déjà. Si un serveur protégé existe déjà :
 
 ```bash
-PA_URL=http://127.0.0.1:8080 npm run test:e2e
+PA_URL=http://127.0.0.1:8080 \
+PA_AUTH_USER=agrumes PA_AUTH_PASSWORD='motdepasse' \
+npm run test:e2e
 ```
+
+Le test vérifie le chargement de la SPA, la navigation et l'absence d'erreurs
+console. Les parcours avancés (bannière active, pause, planification, erreurs)
+sont couverts par les tests backend et ont été validés manuellement en headless
+avec captures dans `docs/screenshots/`.
 
 ### VM Debian sans GUI
 
@@ -218,6 +234,12 @@ Voir `deploy/presse-agrumes.service` et `README.md`. Points d'attention :
   `frontend/dist/index.html` à chaque requête ; en revanche, si `assets/`
   n'existait pas au démarrage, redémarrer.
 
+## Releases
+
+Le versionning et la création des tags sont décrits dans
+[`RELEASES.md`](RELEASES.md). En résumé : bumper les versions, mettre à jour le
+CHANGELOG, committer, puis exécuter `scripts/release.sh X.Y.Z` et pousser le tag.
+
 ## Checklist de release
 
 - [ ] `pytest` vert.
@@ -227,4 +249,7 @@ Voir `deploy/presse-agrumes.service` et `README.md`. Points d'attention :
 - [ ] Captures dans `docs/screenshots/` à jour.
 - [ ] `docs/JOURNAL.md` complété.
 - [ ] `README.md` / `CHANGELOG.md` à jour.
+- [ ] Versions synchronisées (`__init__.py`, `config.py`, `pyproject.toml`,
+      `frontend/package.json`, `CHANGELOG.md`).
+- [ ] `scripts/release.sh X.Y.Z` exécuté et tag poussé.
 - [ ] `git status` ne contient ni `data/`, ni `MEDIAS/`, ni `node_modules/`.

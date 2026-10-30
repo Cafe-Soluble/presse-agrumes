@@ -13,7 +13,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-.venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload &
+PA_AUTH_DISABLED=1 .venv/bin/python -m presse_agrumes --host 127.0.0.1 --port 8080 --reload &
 BACKEND_PID=$!
 
 (

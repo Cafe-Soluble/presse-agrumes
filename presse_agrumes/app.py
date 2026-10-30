@@ -16,6 +16,7 @@ import hmac
 import json
 import mimetypes
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -159,6 +160,8 @@ npm run build</pre>
             "ffmpeg": config.ffmpeg_bin(),
             "ffprobe": config.ffprobe_bin(),
             "auth_enabled": config.AUTH_ENABLED,
+            "server_timezone": datetime.now().astimezone().tzname(),
+            "server_time": datetime.now().astimezone().isoformat(),
         }
 
     @app.get("/api/config")
@@ -167,6 +170,8 @@ npm run build</pre>
             "version": __version__,
             "allowed_roots": [str(path) for path in config.ALLOWED_ROOTS],
             "auth_enabled": config.AUTH_ENABLED,
+            "auth_user": config.AUTH_USER if config.AUTH_ENABLED else None,
+            "server_timezone": datetime.now().astimezone().tzname(),
             "quality_presets": QUALITY_PRESETS,
             "defaults": {
                 "settings": {
@@ -328,6 +333,10 @@ npm run build</pre>
     async def list_jobs(limit: int = Query(default=30, ge=1, le=200)):
         return {"jobs": manager.list(limit)}
 
+    @app.get("/api/jobs/active")
+    async def active_jobs():
+        return {"jobs": manager.active()}
+
     @app.get("/api/jobs/{job_id}")
     async def get_job(job_id: str):
         job = manager.get(job_id)
@@ -343,6 +352,24 @@ npm run build</pre>
         if not manager.cancel(job_id):
             raise HTTPException(status_code=409, detail="Tâche déjà terminée ou inconnue.")
         return {"cancelled": True}
+
+    @app.post("/api/jobs/{job_id}/pause")
+    async def pause_job(job_id: str):
+        if not manager.pause(job_id):
+            raise HTTPException(
+                status_code=409,
+                detail="Tâche non pausable, déjà terminée ou inconnue.",
+            )
+        return {"paused": True}
+
+    @app.post("/api/jobs/{job_id}/resume")
+    async def resume_job(job_id: str):
+        if not manager.resume(job_id):
+            raise HTTPException(
+                status_code=409,
+                detail="Tâche non reprenable, déjà terminée ou inconnue.",
+            )
+        return {"resumed": True}
 
     @app.get("/api/jobs/{job_id}/events")
     async def job_events(job_id: str, request: Request):

@@ -18,6 +18,7 @@ import pytest
 TEST_ROOT = Path(tempfile.mkdtemp(prefix="presse-agrumes-tests-"))
 os.environ["PA_DATA_DIR"] = str(TEST_ROOT / "data")
 os.environ["PA_ALLOWED_ROOTS"] = str(TEST_ROOT)
+os.environ["PA_AUTH_DISABLED"] = "1"
 os.environ.pop("PA_AUTH_USER", None)
 os.environ.pop("PA_AUTH_PASSWORD", None)
 

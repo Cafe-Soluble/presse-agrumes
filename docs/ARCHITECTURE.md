@@ -49,7 +49,9 @@
   une série. L'utilisateur marque une racine de séries. Sous cette racine, le
   dossier parent immédiat d'une vidéo devient un pack (saison ou série).
 - **Sécurité locale** : `PA_ALLOWED_ROOTS` + `guard_path`, pas de shell,
-  authentification Basic optionnelle, liens symboliques non suivis.
+  authentification HTTP Basic active par défaut avec mot de passe généré,
+  liens symboliques non suivis.
+- **Port** : scan au démarrage pour éviter les conflits (8080 occupé → 8081).
 
 ## Backend
 
@@ -59,6 +61,26 @@ Résout `PA_*`, les dossiers de données, et cherche ffmpeg/ffprobe dans l'ordre
 variable d'environnement explicite, `PATH`, `~/.local/bin`, `/usr/local/bin`,
 `/usr/bin`, `/opt/ffmpeg/bin`. Le fallback `~/.local/bin` sert au build statique
 de développement.
+
+L'authentification HTTP Basic est **active par défaut**. Si `PA_AUTH_PASSWORD`
+n'est pas fourni, `config.py` génère un mot de passe temporaire
+(`secrets.token_hex`) affiché par `__main__.py`. `PA_AUTH_DISABLED=1` désactive
+l'authentification pour le développement.
+
+### `network.py`
+
+- `is_port_available()` / `find_available_port()` : bind TCP séquentiel pour
+  trouver un port libre (8080 → 8081 → …).
+- `local_ip_addresses()` : adresse UDP principale, hostname et énumération
+  `SIOCGIFADDR` des interfaces (inclut Tailscale/WireGuard).
+- Utilisé par `__main__.py` pour afficher le port et les URLs réelles.
+
+### `schedule.py`
+
+- `is_within_windows(now, windows)` : plages par jour (0=lundi), traversée de
+  minuit, `start == end` = journée entière.
+- `next_window_start()` : prochaine reprise, utilisée pour `next_resume_at`.
+- `describe_windows()` : résumé lisible dans les logs.
 
 ### `paths.py`
 
@@ -102,7 +124,8 @@ de développement.
 ### `jobs.py`
 
 `Job` contient : statut, progression, items, logs (deque), estimate, résultat,
-`sse.Event` d'annulation, processus ffmpeg en cours, verrou.
+`context` (scan_id…), `schedule`, raisons de pause, `threading.Condition`,
+`Event` d'annulation, processus ffmpeg en cours, verrou.
 
 - **Scan** : walk → ffprobe en pool (`workers`) → `build_items` → sauvegarde.
   L'ETA est calculé sur le débit de fichiers analysés.
@@ -113,6 +136,12 @@ de développement.
   temporaire `.pa-tmp-<token>.ext`, progression parsée (`out_time_us`, `speed`,
   `fps`), validation ffprobe, `os.replace`, puis traitement de l'original.
   Annulation : `terminate()` des processus, arrêt du pool, statut `cancelled`.
+- **Pause** : `pause("manual"|"schedule")` ajoute une raison, passe le statut à
+  `paused` et envoie `SIGSTOP` aux ffmpeg ; `resume()` retire la raison et
+  envoie `SIGCONT` s'il n'en reste aucune. `wait_if_paused()` bloque les workers
+  avant chaque fichier.
+- **Planification** : thread dédié vérifiant les plages toutes les 15 s ; hors
+  plage, pause `schedule` + `next_resume_at`, reprise automatique ensuite.
 - **Test** : trois étapes (proxy original 0→35 %, brut 35→45 %, AV1 45→100 %),
   méta et comparaison de débit.
 - **Benchmark** : délégué à `hardware.benchmark`, exécuté en threadpool via
@@ -138,14 +167,17 @@ Les jobs sont persistés à chaque étape de compression (pas à chaque tick SSE
 ### État et données
 
 - **TanStack Query** : `config`, `hardware`, `mounts`, `scans`, `scan`, `job`,
-  `preflight`, `browse`, `test`.
+  `jobs/active`, `preflight`, `browse`, `test`.
 - **`useJob`** : EventSource sur `/api/jobs/{id}/events` met à jour le cache
   TanStack ; `refetchInterval` de 1,2 s tant que le job n'est pas terminal,
   ce qui couvre les coupures SSE.
+- **`useActiveJobs`** : polling 2,5 s de `/api/jobs/active`, utilisé par la
+  bannière globale et pour rouvrir automatiquement le suivi après rechargement.
 - **localStorage** : racine, options de scan, dossiers de série, réglages AV1,
-  destination, originaux, pourcentage de ressources, concurrence.
+  destination, originaux, pourcentage de ressources, concurrence, planification.
 - **Sélection** : `Set<string>` d'IDs d'items. Un pack sélectionné sélectionne
-  tous ses épisodes côté serveur.
+  tous ses épisodes côté serveur. La ligne entière est cliquable, la case à
+  cocher reste indépendante.
 
 ### Pages
 
@@ -206,7 +238,11 @@ vérification.
 {
   "id": "…",
   "kind": "compress",
-  "status": "running",
+  "status": "paused",
+  "context": { "scan_id": "…", "item_count": 8 },
+  "schedule": { "enabled": true, "windows": [{ "days": [0], "start": "22:00", "end": "07:00" }] },
+  "pause_reasons": ["schedule"],
+  "next_resume_at": "2026-11-02T00:00:00+01:00",
   "progress": {
     "phase": "compressing",
     "percent": 42.5,

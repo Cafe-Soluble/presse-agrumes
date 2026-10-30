@@ -13,10 +13,15 @@ Environment=PA_HOST=0.0.0.0
 Environment=PA_PORT=8080
 Environment=PA_DATA_DIR=/opt/presse-agrumes/data
 Environment=PA_ALLOWED_ROOTS=/mnt/media:/srv/media
-# Recommandé : authentification HTTP Basic si l'interface est accessible
-# au-delà de votre réseau local de confiance.
+# L'authentification HTTP Basic est active par défaut. Si PA_AUTH_PASSWORD
+# n'est pas défini, un mot de passe temporaire est généré à chaque démarrage
+# et affiché dans le journal :
+#   sudo journalctl -u presse-agrumes -n 50 | grep -A2 "Mot de passe"
+# Pour un mot de passe stable, décommentez et adaptez :
 # Environment=PA_AUTH_USER=agrumes
 # Environment=PA_AUTH_PASSWORD=changez-moi
+# Développement local uniquement (interface sans mot de passe) :
+# Environment=PA_AUTH_DISABLED=1
 Environment=FFMPEG_BIN=/usr/bin/ffmpeg
 Environment=FFPROBE_BIN=/usr/bin/ffprobe
 ExecStart=/opt/presse-agrumes/.venv/bin/python -m presse_agrumes --host 0.0.0.0 --port 8080

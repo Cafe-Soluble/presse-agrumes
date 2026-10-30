@@ -15,13 +15,22 @@ import {
 import { api } from "@/lib/api";
 import type {
   CompressionPayload,
+  CompressionSchedule,
   CompressionSettings,
   OriginalOptions,
   OutputOptions,
   ScanItem,
   ScanOptions,
 } from "@/lib/types";
-import { useConfig, useHardware, useJob, useMounts, useScan, useScans } from "@/hooks/use-api";
+import {
+  useActiveJobs,
+  useConfig,
+  useHardware,
+  useJob,
+  useMounts,
+  useScan,
+  useScans,
+} from "@/hooks/use-api";
 import { useDebouncedValue, useLocalStorage } from "@/hooks/use-utils";
 import { effectiveEncoder } from "@/lib/estimate";
 import { formatBytes, formatNumber } from "@/lib/utils";
@@ -36,6 +45,7 @@ import { CompressionPanel } from "@/components/compression-panel";
 import { JobPanel } from "@/components/job-panel";
 import { TestDialog } from "@/components/test-dialog";
 import { BrowseDialog, type BrowseMode } from "@/components/browse-dialog";
+import { DEFAULT_SCHEDULE } from "@/components/schedule-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +104,7 @@ export function WorkspacePage() {
   const hardwareQuery = useHardware();
   const mountsQuery = useMounts();
   const scansQuery = useScans();
+  const activeJobsQuery = useActiveJobs();
   const scanQuery = useScan(activeScanId);
   const scan = scanQuery.data;
 
@@ -106,6 +117,7 @@ export function WorkspacePage() {
   const [originals, setOriginals] = useLocalStorage<OriginalOptions>("pa.originals", DEFAULT_ORIGINALS);
   const [resourcePercent, setResourcePercent] = useLocalStorage("pa.resource", 70);
   const [concurrency, setConcurrency] = useLocalStorage("pa.concurrency", 1);
+  const [schedule, setSchedule] = useLocalStorage<CompressionSchedule>("pa.schedule", DEFAULT_SCHEDULE);
 
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const scanJob = useJob(scanJobId);
@@ -120,6 +132,7 @@ export function WorkspacePage() {
   const scanTerminalRef = useRef("");
   const compressionTerminalRef = useRef("");
   const scrollToResultsRef = useRef(false);
+  const autoOpenedJobRef = useRef<string | null>(null);
 
   const selectedIds = useMemo(() => [...selection].sort(), [selection]);
 
@@ -141,8 +154,9 @@ export function WorkspacePage() {
       resource_percent: resourcePercent,
       concurrency,
       verify: true,
+      schedule,
     };
-  }, [scan, selectedIds, settings, output, originals, resourcePercent, concurrency]);
+  }, [scan, selectedIds, settings, output, originals, resourcePercent, concurrency, schedule]);
 
   const debouncedPayload = useDebouncedValue(preflightPayload, 700);
   const payloadReady =
@@ -165,6 +179,20 @@ export function WorkspacePage() {
     setSelection(new Set());
     setJobDismissed(false);
   }, [activeScanId]);
+
+  // Si un job de compression tourne encore (navigateur fermé puis rouvert),
+  // on réaffiche automatiquement son suivi et le scan associé.
+  useEffect(() => {
+    const active = activeJobsQuery.data?.find((job) => job.kind === "compress");
+    if (!active || autoOpenedJobRef.current === active.id) return;
+    autoOpenedJobRef.current = active.id;
+    setCompressionJobId(active.id);
+    setJobDismissed(false);
+    const scanId = active.context?.scan_id;
+    if (scanId && !activeScanId) {
+      setSearchParams({ scan: String(scanId) });
+    }
+  }, [activeJobsQuery.data, activeScanId, setSearchParams]);
 
   useEffect(() => {
     if (!scan) return;
@@ -271,8 +299,31 @@ export function WorkspacePage() {
 
   const cancelCompression = useMutation({
     mutationFn: (jobId: string) => api.cancelJob(jobId),
-    onSuccess: () => toast({ title: "Annulation demandée", variant: "warning" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active"] });
+      toast({ title: "Annulation demandée", variant: "warning" });
+    },
     onError: (error: Error) => toast({ title: "Annulation impossible", description: error.message, variant: "error" }),
+  });
+
+  const pauseCompression = useMutation({
+    mutationFn: (jobId: string) => api.pauseJob(jobId),
+    onSuccess: (_data, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active"] });
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+      toast({ title: "Compression mise en pause", variant: "warning" });
+    },
+    onError: (error: Error) => toast({ title: "Pause impossible", description: error.message, variant: "error" }),
+  });
+
+  const resumeCompression = useMutation({
+    mutationFn: (jobId: string) => api.resumeJob(jobId),
+    onSuccess: (_data, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active"] });
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+      toast({ title: "Compression reprise", variant: "success" });
+    },
+    onError: (error: Error) => toast({ title: "Reprise impossible", description: error.message, variant: "error" }),
   });
 
   const scanning = startScan.isPending || (scanJob.data ? ["queued", "running"].includes(scanJob.data.status) : false);
@@ -348,6 +399,16 @@ export function WorkspacePage() {
     if (originals.mode === "move" && !originals.trash_dir) {
       toast({ title: "Corbeille manquante", description: "Indiquez le dossier de corbeille.", variant: "warning" });
       return;
+    }
+    if (schedule.enabled) {
+      if (schedule.windows.length === 0) {
+        toast({ title: "Planification vide", description: "Ajoutez au moins une plage horaire.", variant: "warning" });
+        return;
+      }
+      if (schedule.windows.some((window) => window.days.length === 0)) {
+        toast({ title: "Jours manquants", description: "Chaque plage doit avoir au moins un jour.", variant: "warning" });
+        return;
+      }
     }
     if (output.mode === "custom_dir" && !output.output_dir) {
       toast({ title: "Dossier de sortie manquant", description: "Indiquez le dossier de sortie.", variant: "warning" });
@@ -489,6 +550,9 @@ export function WorkspacePage() {
             onResourcePercentChange={setResourcePercent}
             concurrency={concurrency}
             onConcurrencyChange={setConcurrency}
+            schedule={schedule}
+            onScheduleChange={setSchedule}
+            timezone={configQuery.data?.server_timezone}
             preflight={preflight}
             preflightLoading={preflightLoading}
             preflightError={preflightQuery.error ? (preflightQuery.error as Error).message : undefined}
@@ -504,6 +568,10 @@ export function WorkspacePage() {
             onCancel={() => compressionJob.data && cancelCompression.mutate(compressionJob.data.id)}
             onRescan={() => handleStartScan(scan?.root)}
             onDismiss={closeJob}
+            onPause={() => compressionJob.data && pauseCompression.mutate(compressionJob.data.id)}
+            onResume={() => compressionJob.data && resumeCompression.mutate(compressionJob.data.id)}
+            pausing={pauseCompression.isPending}
+            resuming={resumeCompression.isPending}
           />
         )}
 

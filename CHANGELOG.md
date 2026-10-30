@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.2.0] — 2026-10-30
+
+### Ajouté
+
+- **Authentification par défaut** : mot de passe temporaire généré à chaque
+  démarrage, affiché en console avec l'utilisateur `agrumes`.
+- **Scan automatique des ports** : si le port préféré est occupé, l'application
+  bascule sur le suivant et affiche l'URL réelle (IPv4, dont Tailscale).
+- **Pause / reprise** d'une compression : `SIGSTOP`/`SIGCONT` sur ffmpeg, sans
+  perte de progression.
+- **Planification horaire** : fenêtres par jour et par heure, traversée de
+  minuit, pause automatique hors plage et reprise programmée.
+- **Bannière des tâches actives** en haut de toutes les pages, avec progression,
+  ETA, vitesse, pause/reprise et accès au suivi.
+- **Réouverture automatique** du suivi après fermeture du navigateur, via
+  `GET /api/jobs/active`.
+- **Sélection par ligne entière** dans les résultats, la case à cocher restant
+  utilisable.
+- **Erreurs enrichies** : fichier vide, corrompu, permissions, timeout, absence
+  de flux vidéo, avec libellé et conseil ; ces fichiers sont ignorés sans
+  interrompre le scan.
+- **Versionning** : SemVer synchronisé (backend, frontend, pyproject,
+  CHANGELOG), tags git `v0.1.0` et `v0.2.0`, script `scripts/release.sh`,
+  documentation `docs/RELEASES.md`.
+
+### Modifié
+
+- `/api/health` et `/api/config` exposent le fuseau horaire du serveur.
+- Les jobs peuvent avoir le statut `paused` ; `/api/jobs/active` liste les
+  tâches en cours.
+- Nouvelles routes `POST /api/jobs/{id}/pause` et `/resume`.
+
 ## [0.1.0] — 2026-10-30
 
 Première version fonctionnelle.

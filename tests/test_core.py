@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import os
+import socket
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-from presse_agrumes import config, media, paths, series
+from presse_agrumes import config, media, network, paths, schedule, series
+from presse_agrumes.jobs import Job
 
 
 def test_human_size_and_duration():
@@ -57,6 +60,80 @@ def test_analyze_unreadable_file(media_root: Path):
         pytest.skip("test exécuté en root : permissions non applicables")
     entry = media.analyze_file(path, media_root)
     assert entry["error"] is not None
+    assert entry["error_code"] == "permission_denied"
+
+
+def test_empty_and_corrupt_files_are_friendly(media_root: Path):
+    empty = media_root / "vide-mais-lisible.mp4"
+    empty.write_bytes(b"")
+    empty.chmod(0o644)
+    entry = media.analyze_file(empty, media_root)
+    assert entry["error_code"] == "empty_file"
+    assert "0 octet" in entry["error"]
+
+    corrupt = media_root / "corrompu.mp4"
+    corrupt.write_bytes(b"ceci n'est pas une video" * 100)
+    corrupt.chmod(0o644)
+    entry = media.analyze_file(corrupt, media_root)
+    assert entry["error_code"] in {"invalid_data", "probe_error"}
+    assert "corrompu" in entry["error"].lower() or "illisible" in entry["error"].lower()
+    assert entry["error_hint"]
+
+
+def test_schedule_windows_and_next_start():
+    # Lundi 2 novembre 2026, 23:00 UTC
+    monday = datetime(2026, 11, 2, 23, 0, tzinfo=timezone.utc)
+    window = {"days": [0], "start": "22:00", "end": "06:00"}
+    assert schedule.is_within_windows(monday, [window])
+    tuesday_early = datetime(2026, 11, 3, 5, 30, tzinfo=timezone.utc)
+    assert schedule.is_within_windows(tuesday_early, [window])
+    tuesday_noon = datetime(2026, 11, 3, 12, 0, tzinfo=timezone.utc)
+    assert not schedule.is_within_windows(tuesday_noon, [window])
+    assert schedule.next_window_start(tuesday_noon, [window]) == datetime(
+        2026, 11, 9, 22, 0, tzinfo=timezone.utc
+    )
+
+    all_day = {"days": [0], "start": "00:00", "end": "00:00"}
+    assert schedule.is_within_windows(monday, [all_day])
+    assert "Tous" not in schedule.describe_windows([all_day])  # jour unique
+
+
+def test_schedule_validation():
+    from presse_agrumes.models import CompressionSchedule, ScheduleWindow
+
+    ScheduleWindow(days=[0, 1], start="22:00", end="06:00")
+    with pytest.raises(ValueError):
+        ScheduleWindow(days=[], start="22:00", end="06:00")
+    with pytest.raises(ValueError):
+        ScheduleWindow(days=[7], start="22:00", end="06:00")
+    with pytest.raises(ValueError):
+        ScheduleWindow(days=[0], start="25:00", end="06:00")
+    with pytest.raises(ValueError):
+        CompressionSchedule(enabled=True, windows=[])
+
+
+def test_job_pause_state():
+    job = Job("pause-test", "compress", "test")
+    job.set_status("running")
+    assert job.status == "running"
+    job.pause("manual")
+    assert job.status == "paused"
+    assert "manual" in job.snapshot()["pause_reasons"]
+    assert job.resume("manual")
+    assert job.status == "running"
+    assert job.snapshot()["pause_reasons"] == []
+
+
+def test_find_available_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        sock.listen(1)
+        busy = sock.getsockname()[1]
+        assert not network.is_port_available(busy, "127.0.0.1")
+        found = network.find_available_port(busy, "127.0.0.1", max_tries=20)
+        assert found > busy
+        assert network.is_port_available(found, "127.0.0.1")
+    assert isinstance(network.local_ip_addresses(), list)
 
 
 def test_guard_path_rejects_outside_allowed_root(tmp_path: Path):

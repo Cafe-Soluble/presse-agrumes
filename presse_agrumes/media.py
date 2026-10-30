@@ -306,6 +306,50 @@ def _pick_duration(fmt: dict, video_stream: dict) -> float:
     return duration
 
 
+def friendly_probe_error(path: Path, message: str | None) -> tuple[str, str, str]:
+    """Traduit les erreurs ffprobe en message actionnable.
+
+    Retourne (message, code, conseil). On retire le chemin répété en préfixe
+    pour que l'interface n'affiche pas deux fois le même fichier.
+    """
+    clean = (message or "").strip()
+    path_prefix = str(path)
+    if clean.startswith(path_prefix + ":"):
+        clean = clean[len(path_prefix) + 1:].strip()
+    lower = clean.lower()
+
+    if "invalid data found" in lower or "moov atom not found" in lower:
+        return (
+            "Fichier illisible ou corrompu : ffprobe ne reconnaît pas le format.",
+            "invalid_data",
+            "Le fichier est probablement tronqué, incomplet ou dans un format exotique. "
+            "Il est ignoré par l'analyse et la compression.",
+        )
+    if "permission denied" in lower:
+        return (
+            "Permission refusée lors de la lecture du fichier.",
+            "permission_denied",
+            "Vérifiez les droits de l'utilisateur qui exécute Presse-Agrumes.",
+        )
+    if "no such file" in lower:
+        return (
+            "Fichier introuvable (supprimé ou déplacé pendant l'analyse).",
+            "not_found",
+            "Relancez l'analyse si le fichier est revenu.",
+        )
+    if "dépassé" in lower or "timeout" in lower:
+        return (
+            "ffprobe a dépassé le temps imparti.",
+            "timeout",
+            "Le fichier est peut-être sur un support lent ou endommagé. Il est ignoré.",
+        )
+    return (
+        f"ffprobe n'a pas pu analyser le fichier : {clean or 'erreur inconnue'}",
+        "probe_error",
+        "Le fichier est ignoré par l'analyse et la compression.",
+    )
+
+
 def analyze_file(path: str | Path, root: str | Path) -> dict:
     """Construit la fiche complète d'un fichier vidéo (jamais d'exception)."""
     path = Path(path)
@@ -322,6 +366,8 @@ def analyze_file(path: str | Path, root: str | Path) -> dict:
         "parent": str(path.parent),
         "extension": path.suffix.lower(),
         "error": None,
+        "error_code": None,
+        "error_hint": None,
         "readable": False,
         "parent_writable": False,
     }
@@ -331,6 +377,8 @@ def analyze_file(path: str | Path, root: str | Path) -> dict:
         mtime = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc)
     except OSError as exc:
         entry["error"] = f"stat impossible : {exc}"
+        entry["error_code"] = "stat_error"
+        entry["error_hint"] = "Le fichier est ignoré par l'analyse et la compression."
         return entry
 
     entry.update({
@@ -341,12 +389,25 @@ def analyze_file(path: str | Path, root: str | Path) -> dict:
         "parent_writable": os.access(path.parent, os.W_OK | os.X_OK),
     })
     if not entry["readable"]:
-        entry["error"] = "fichier non lisible (permissions)"
+        entry["error"] = "Fichier non lisible (permissions)."
+        entry["error_code"] = "permission_denied"
+        entry["error_hint"] = "Vérifiez les droits de l'utilisateur qui exécute Presse-Agrumes."
+        return entry
+    if size_bytes == 0:
+        entry["error"] = "Fichier vide (0 octet) : téléchargement incomplet ou fichier de travail."
+        entry["error_code"] = "empty_file"
+        entry["error_hint"] = (
+            "Presse-Agrumes l'ignore : aucun fichier n'est modifié. "
+            "Supprimez-le ou remplacez-le si nécessaire."
+        )
         return entry
 
     probe, probe_error = run_ffprobe(path)
     if probe is None:
-        entry["error"] = probe_error or "ffprobe a échoué (fichier corrompu ou illisible)"
+        message, code, hint = friendly_probe_error(path, probe_error)
+        entry["error"] = message
+        entry["error_code"] = code
+        entry["error_hint"] = hint
         return entry
 
     fmt = probe.get("format", {}) or {}
@@ -375,7 +436,9 @@ def analyze_file(path: str | Path, root: str | Path) -> dict:
     is_hdr = color_transfer in {"smpte2084", "arib-std-b67", "smpte428"}
     is_10bit = any(token in pix_fmt for token in ("10le", "10be", "12le", "12be"))
     if video_codec not in {"inconnu", "av1"} and not width:
-        entry["error"] = "aucun flux vidéo exploitable détecté"
+        entry["error"] = "Aucun flux vidéo exploitable détecté."
+        entry["error_code"] = "no_video"
+        entry["error_hint"] = "Le fichier est ignoré par l'analyse et la compression."
         return entry
 
     gain_factor, gain_bytes, bpp, estimated_output = estimate_gain(

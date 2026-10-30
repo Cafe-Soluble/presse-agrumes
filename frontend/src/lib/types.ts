@@ -1,4 +1,4 @@
-export type JobStatus = "queued" | "running" | "done" | "error" | "cancelled" | "interrupted";
+export type JobStatus = "queued" | "running" | "paused" | "done" | "error" | "cancelled" | "interrupted";
 export type JobKind = "scan" | "compress" | "test";
 
 export interface Warning {
@@ -116,6 +116,16 @@ export interface JobSnapshot {
   items: JobItem[];
   estimate?: EstimateInfo | null;
   logs?: string[];
+  context?: {
+    scan_id?: string;
+    item_count?: number;
+    root?: string;
+    path?: string;
+    [key: string]: unknown;
+  };
+  schedule?: CompressionSchedule | null;
+  pause_reasons?: string[];
+  next_resume_at?: string | null;
 }
 
 export interface EstimateInfo {
@@ -184,6 +194,8 @@ export interface ScanItem {
   audio_codec?: string;
   series_name?: string;
   error?: string | null;
+  error_code?: string | null;
+  error_hint?: string | null;
 }
 
 export interface ScanSummary {
@@ -222,17 +234,25 @@ export interface ScanOptions {
   exclude_globs: string[];
 }
 
+export interface ScanError {
+  path: string;
+  error: string;
+  filename?: string;
+  error_code?: string | null;
+  error_hint?: string | null;
+}
+
 export interface Scan {
   id: string;
   created_at: string;
   root: string;
   options: ScanOptions;
   series_roots: string[];
-  walk_errors: { path: string; error: string }[];
+  walk_errors: ScanError[];
   files: unknown[];
   items: ScanItem[];
   packs: ScanItem[];
-  errors: { path: string; error: string; filename?: string }[];
+  errors: ScanError[];
   summary: ScanSummary;
 }
 
@@ -339,10 +359,23 @@ export interface OriginalOptions {
   trash_dir: string | null;
 }
 
+export interface ScheduleWindow {
+  days: number[];
+  start: string;
+  end: string;
+}
+
+export interface CompressionSchedule {
+  enabled: boolean;
+  windows: ScheduleWindow[];
+}
+
 export interface AppConfig {
   version: string;
   allowed_roots: string[];
   auth_enabled: boolean;
+  auth_user?: string | null;
+  server_timezone?: string;
   quality_presets: QualityPreset[];
   defaults: {
     settings: CompressionSettings;
@@ -361,6 +394,8 @@ export interface Health {
   ffmpeg: string | null;
   ffprobe: string | null;
   auth_enabled: boolean;
+  server_timezone?: string;
+  server_time?: string;
 }
 
 export interface PreflightResult {
@@ -390,6 +425,7 @@ export interface CompressionPayload {
   resource_percent: number;
   concurrency: number;
   verify: boolean;
+  schedule: CompressionSchedule;
 }
 
 export interface TestPayload {
