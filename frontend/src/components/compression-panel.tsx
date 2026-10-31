@@ -14,7 +14,6 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import type {
   AppConfig,
   CompressionSchedule,
@@ -73,6 +72,8 @@ interface CompressionPanelProps {
   preflightError?: string;
   onStart: () => void;
   startPending: boolean;
+  onCalibrate?: (samplePath?: string) => void;
+  calibrating?: boolean;
   onBrowse: (mode: "output" | "trash", initialPath: string) => void;
 }
 
@@ -99,9 +100,10 @@ export function CompressionPanel({
   preflightError,
   onStart,
   startPending,
+  onCalibrate,
+  calibrating,
   onBrowse,
 }: CompressionPanelProps) {
-  const navigate = useNavigate();
   const stats = selectionStats(scan, selection, hardware, settings, resourcePercent, concurrency);
   const diskPath =
     output.mode === "custom_dir" && output.output_dir ? output.output_dir : scan.root;
@@ -570,10 +572,10 @@ export function CompressionPanel({
                     }
                   />
                   <span>
-                    Nettoyer le nom (retirer x264, x265, H264, HEVC, AV1…)
+                    Remplacer le codec dans le nom (H264 → av1, x265 → h265)
                     <span className="mt-0.5 block text-[10px]">
-                      Exemple : <code className="font-mono">Film.2024.1080p.x265-GROUP.mkv</code> →{" "}
-                      <code className="font-mono">Film.2024.1080p-GROUP.av1.mkv</code>
+                      Exemple : <code className="font-mono">Film.2024.1080p.h264-GROUP.mkv</code> →{" "}
+                      <code className="font-mono">Film.2024.1080p.av1-GROUP.mkv</code>
                     </span>
                   </span>
                 </label>
@@ -651,19 +653,22 @@ export function CompressionPanel({
                   value={`${effectiveEncoder(hardware, settings)} · preset ${settings.preset}`}
                 />
               </div>
-              {stats.source !== "mesuré" && (
+              {stats.source !== "mesuré" && onCalibrate && (
                 <button
                   type="button"
-                  className="mt-3 flex items-center gap-1 text-[11px] text-primary hover:underline"
-                  onClick={() => navigate("/hardware")}
+                  className="mt-3 flex items-center gap-1 text-[11px] text-primary hover:underline disabled:opacity-50"
+                  onClick={() => onCalibrate(sample?.path)}
+                  disabled={calibrating}
                 >
-                  <Gauge className="h-3 w-3" /> Calibrer l'ETA sur ce matériel <ArrowRight className="h-3 w-3" />
+                  <Gauge className="h-3 w-3" />
+                  {calibrating ? "Calibrage sur le fichier…" : "Calibrer sur ce fichier"}
+                  <ArrowRight className="h-3 w-3" />
                 </button>
               )}
               <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
                 {stats.source === "mesuré"
-                  ? "ETA calculée à partir du benchmark matériel de cette machine."
-                  : "ETA indicative : lancez un benchmark dans « Matériel » pour la préciser."}
+                  ? "ETA calculée à partir d'une mesure réelle de cette machine."
+                  : "ETA indicative : calibre sur le fichier pour une mesure réelle. Un calibrage automatique est aussi lancé au démarrage."}
               </p>
             </section>
 

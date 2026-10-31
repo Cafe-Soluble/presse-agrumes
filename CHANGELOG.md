@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.11.1] - 2026-10-31
+
+### Corrigé
+
+- **ETA initiale faussée** : la calibration automatique utilisait une mire
+  synthétique de 1 seconde, beaucoup trop facile, d'où des estimations à 14 min
+  pour un encodage de plusieurs heures. Au démarrage d'une compression, un
+  extrait de 3 secondes du premier fichier réel est maintenant encodé avec les
+  réglages exacts, puis mis en cache.
+- **Nom final** : le codec présent dans le nom est remplacé en place au lieu
+  d'être supprimé puis suffixé.
+  `Film.2024.1080p.h264-GROUP.mkv` devient
+  `Film.2024.1080p.av1-GROUP.mkv` ou `.h265-GROUP.mkv`.
+
+### Modifié
+
+- L'estimation propose un bouton **Calibrer sur ce fichier** qui lance la
+  mesure réelle, au lieu de renvoyer vers un benchmark de mire.
+
 ## [0.11.0] - 2026-10-31
 
 ### Ajouté

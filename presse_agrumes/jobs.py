@@ -856,11 +856,18 @@ class JobManager:
                 pass
         job.update_progress(message=message, eta_seconds=None)
 
-    def _auto_calibrate(self, job: Job, request: CompressRequest) -> None:
-        """Lance un benchmark court si le preset n'a pas de mesure en cache.
+    def _auto_calibrate(
+        self,
+        job: Job,
+        request: CompressRequest,
+        source: str,
+        threads: int,
+    ) -> None:
+        """Mesure un extrait du fichier réel si aucune mesure réelle n'existe.
 
-        Cela évite les écarts importants entre l'ETA initiale (table générique)
-        et la vitesse réelle observée pendant la compression.
+        La mire synthétique est trop facile et surestime largement la vitesse.
+        Ce calibrage dure quelques secondes et donne une ETA réaliste avant le
+        premier fichier. Le résultat est mis en cache pour les fois suivantes.
         """
         try:
             hardware_info = hardware.detect_hardware()
@@ -871,30 +878,30 @@ class JobManager:
             )
             if encoder is None:
                 return
-            if (
-                encoder == "av1_vaapi"
-                and not hardware_info["gpu"]["vaapi_available"]
-            ):
+            if encoder.endswith("_vaapi") and not hardware_info["gpu"]["vaapi_available"]:
                 return
-            benchmark_info = hardware.get_benchmark_or_estimate(
-                hardware_info, encoder, request.settings.preset
+            prefix = f"{encoder}:p{request.settings.preset}:"
+            has_real = any(
+                key.startswith(prefix) and key.endswith(":real")
+                for key in hardware_info.get("benchmarks", {})
             )
-            if benchmark_info.get("source") == "benchmark":
+            if has_real:
                 return
             job.update_progress(
                 phase="calibrating",
-                message="Calibrage de l'ETA sur ce matériel…",
+                message="Calibrage de l'ETA sur un extrait du fichier réel…",
                 eta_seconds=None,
             )
             job.add_log(
-                f"Calibration automatique : benchmark {encoder} "
-                f"preset {request.settings.preset}…"
+                f"Calibration automatique sur le fichier réel ({encoder}, "
+                f"preset {request.settings.preset}, CRF {request.settings.crf})…"
             )
-            hardware.benchmark(
-                encoder,
-                request.settings.preset,
-                threads=hardware_info["cpu"]["logical_cores"],
-                sample_duration=1,
+            hardware.benchmark_real(
+                source,
+                request.settings,
+                threads=threads,
+                sample_seconds=3,
+                samples=1,
             )
         except Exception as exc:  # le benchmark ne doit jamais bloquer le job
             job.add_log(f"⚠ Calibration automatique impossible : {exc}")
@@ -915,17 +922,29 @@ class JobManager:
                     job.result = {"cancelled": True, "success": 0, "failed": 0}
                     return
 
-            self._auto_calibrate(job, request)
             plan = self.plan_compression(scan, request)
             tasks = plan["tasks"]
             job.warnings = plan["warnings"] + plan["skipped"]
-            job.estimate = plan["estimate"]
             if not tasks:
                 reasons = "; ".join(w["warning"] for w in plan["skipped"][:3])
                 raise RuntimeError(
                     "Aucun fichier compressible après vérifications."
                     + (f" ({reasons})" if reasons else "")
                 )
+
+            # Calibrage sur le premier fichier réel, puis recalcul de l'ETA.
+            self._auto_calibrate(job, request, tasks[0]["source"], plan["threads"])
+            hardware_info = hardware.detect_hardware()
+            plan["estimate"] = hardware.eta_summary(
+                plan["total_duration_sec"],
+                len(tasks),
+                hardware_info,
+                encoder=plan["encoder"],
+                preset=request.settings.preset,
+                resource_percent=request.resource_percent,
+                concurrency=request.concurrency,
+            )
+            job.estimate = plan["estimate"]
 
             job.items = [
                 {

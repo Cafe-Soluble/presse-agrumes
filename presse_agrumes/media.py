@@ -618,6 +618,17 @@ def strip_codec_tokens(stem: str) -> str:
     return cleaned or stem
 
 
+def replace_codec_token(stem: str, codec: str) -> tuple[str, bool]:
+    """Remplace le codec présent dans le nom par le codec de sortie.
+
+    Film.2024.1080p.h264-GROUP -> Film.2024.1080p.av1-GROUP
+    """
+    new_codec = "h265" if codec == "hevc" else "av1"
+    if not _CODEC_TOKEN_RE.search(stem):
+        return stem, False
+    return _CODEC_TOKEN_RE.sub(new_codec, stem, count=1), True
+
+
 def output_filename(
     source: Path,
     settings,
@@ -625,11 +636,18 @@ def output_filename(
     suffix: str,
     clean_codec: bool = False,
 ) -> str:
+    extension = container_extension(settings.container)
     if output_mode == "same_dir_same_name":
-        return source.stem + container_extension(settings.container)
-    stem = strip_codec_tokens(source.stem) if clean_codec else source.stem
-    cleaned = suffix.strip() or "av1"
-    return f"{stem}.{cleaned}{container_extension(settings.container)}"
+        return source.stem + extension
+    if clean_codec:
+        replaced, found = replace_codec_token(source.stem, settings.codec)
+        if found:
+            return replaced + extension
+        stem = strip_codec_tokens(source.stem)
+    else:
+        stem = source.stem
+    cleaned = suffix.strip().lstrip(".") or "av1"
+    return f"{stem}.{cleaned}{extension}"
 
 
 

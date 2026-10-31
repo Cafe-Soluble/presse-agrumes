@@ -224,3 +224,24 @@ def test_hevc_encoder_arguments():
 
     assert media.choose_encoder("auto", {"libx265": True}, "hevc") == "libx265"
     assert media.choose_encoder("auto", {"libsvtav1": True}, "hevc") is None
+
+
+def test_output_filename_replaces_codec():
+    from presse_agrumes import models
+
+    settings = models.CompressionSettings(codec="av1", container="mkv")
+    source = Path("Film.2024.1080p.h264-GROUP.mkv")
+    assert (
+        media.output_filename(source, settings, "same_dir_new_name", ".av1", True)
+        == "Film.2024.1080p.av1-GROUP.mkv"
+    )
+    hevc = models.CompressionSettings(codec="hevc", container="mkv")
+    assert (
+        media.output_filename(source, hevc, "same_dir_new_name", ".h265", True)
+        == "Film.2024.1080p.h265-GROUP.mkv"
+    )
+    sans_codec = Path("Film.2024.mkv")
+    assert (
+        media.output_filename(sans_codec, settings, "same_dir_new_name", ".av1", True)
+        == "Film.2024.av1.mkv"
+    )

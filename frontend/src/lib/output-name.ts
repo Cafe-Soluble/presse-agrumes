@@ -18,6 +18,17 @@ export function stripCodecTokens(stem: string) {
   return cleaned || stem;
 }
 
+export function replaceCodecToken(stem: string, codec: CompressionSettings["codec"]) {
+  const newCodec = codec === "hevc" ? "h265" : "av1";
+  let found = false;
+  const value = stem.replace(CODEC_TOKEN_RE, (match, prefix: string) => {
+    if (found) return match;
+    found = true;
+    return `${prefix}${newCodec}`;
+  });
+  return { value, found };
+}
+
 export function containerExtension(container: CompressionSettings["container"]) {
   if (container === "mp4") return ".mp4";
   if (container === "webm") return ".webm";
@@ -33,6 +44,10 @@ export function outputFileName(
   const extension = containerExtension(settings.container);
   if (output.mode === "same_dir_same_name") {
     return `${stem}${extension}`;
+  }
+  if (output.clean_codec_names) {
+    const replaced = replaceCodecToken(stem, settings.codec);
+    if (replaced.found) return `${replaced.value}${extension}`;
   }
   const base = output.clean_codec_names ? stripCodecTokens(stem) : stem;
   const suffix = (output.suffix || "av1").replace(/^\.+/, "");

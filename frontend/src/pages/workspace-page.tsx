@@ -688,6 +688,8 @@ export function WorkspacePage() {
             preflightError={preflightQuery.error ? (preflightQuery.error as Error).message : undefined}
             onStart={requestCompression}
             startPending={startCompression.isPending}
+            onCalibrate={(samplePath) => calibrate.mutate(samplePath)}
+            calibrating={calibrate.isPending}
             onBrowse={(mode, initialPath) => openBrowse(mode, initialPath)}
           />
         )}

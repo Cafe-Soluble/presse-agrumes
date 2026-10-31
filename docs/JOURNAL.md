@@ -443,3 +443,16 @@
   cent.
 - **Mise en page** : JobPanel déplacé avant les réglages et les résultats.
 - **Tests** : `/api/system`, typecheck, build, Playwright (navigation Système).
+
+## 2026-10-31 - v0.11.1 : ETA réelle et nom de codec
+
+- **Bug ETA** : `_auto_calibrate` utilisait `hardware.benchmark` sur une mire
+  1 s, trop rapide. Il lance maintenant `hardware.benchmark_real` sur 3 s du
+  premier fichier, avec les réglages réels, si aucune mesure réelle n'est en
+  cache. L'ETA du job est recalculée après calibration.
+- **Bouton** : l'estimation propose « Calibrer sur ce fichier », qui utilise le
+  benchmark réel, au lieu du lien vers la page Matériel.
+- **Nom** : `media.replace_codec_token` remplace h264/x265/HEVC par av1/h265
+  dans le nom, au lieu de supprimer le codec puis d'ajouter un suffixe.
+  Miroir frontend `replaceCodecToken`.
+- **Tests** : remplacement de codec, suffixe sans double point, 47 pytest.
