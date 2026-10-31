@@ -321,3 +321,19 @@
 - **CI** : ajout d'un job `release` (`softprops/action-gh-release`) qui joint
   `docker-compose.yml` aux releases des tags `v*`.
 - **Tests** : pytest, typecheck, build, Playwright, YAML Compose/workflow.
+
+## 2026-10-31 — v0.7.3 : diagnostic permissions et montage média
+
+- **Problème réel sur NAS** : `./data` créé par root alors que le conteneur
+  tourne en UID 1000 → arrêt immédiat, aucune ligne « première configuration »,
+  et message « Médias : /media » trompeur quand le partage est monté sur `/srv`.
+- **Entrypoint** : erreur explicite avec UID courant et commande
+  `sudo chown -R UID:GID ./data` ; le message de première configuration liste
+  les racines autorisées et affiche l'URL `http://<IP-du-NAS>:8473`.
+- **Compose** : header avec `chown` + `docker compose ps/logs`, et exemples de
+  montage `/srv` (OMV), `/volume1` (Synology), `/mnt` (Unraid).
+- **Docs** : dépannage « aucune ligne première configuration », deux stratégies
+  de montage (dossier exact ou racine), rappel que l'assistant ne voit que les
+  chemins montés.
+- **Tests** : entrypoint simulé (succès et échec de permissions), pytest,
+  typecheck, build, Playwright.

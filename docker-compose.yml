@@ -6,8 +6,17 @@
 # logs.
 #
 #   1. Adapter les 3 valeurs marquées « À ADAPTER » ci-dessous.
-#   2. docker compose up -d
-#   3. docker compose logs | grep -A6 "première configuration"
+#      - user: l'UID/GID qui possède ./data et les médias (`id -u`, `id -g`).
+#      - port: le port d'accès dans le navigateur.
+#      - volume média: le chemin réel sur le NAS (il doit exister).
+#   2. Donner ./data au même UID/GID que « user: » :
+#        sudo chown -R 1000:1000 data
+#      (remplace 1000:1000 par les valeurs de user:)
+#   3. docker compose up -d
+#   4. docker compose logs --tail=50
+#      La ligne « première configuration » n'apparaît qu'au premier démarrage.
+#      Si elle est absente : docker compose ps -a doit montrer « Exited (1) »,
+#      et les logs indiquent l'erreur (souvent les permissions de ./data).
 #
 # Rappel des volumes : le format est « hôte:conteneur ».
 #   - à gauche : chemin réel sur le NAS (à adapter) ;
@@ -15,7 +24,7 @@
 # =============================================================================
 services:
   presse-agrumes:
-    image: ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+    image: ghcr.io/cafe-soluble/presse-agrumes:0.7.3
     container_name: presse-agrumes
 
     # À ADAPTER — UID:GID qui possède ./data et les médias.
@@ -31,11 +40,23 @@ services:
       - "8473:8473"
 
     volumes:
-      # À ADAPTER — « dossier média sur le NAS:chemin dans le conteneur ».
-      #   /volume1/media : chemin RÉEL sur le NAS (à remplacer par le tien).
-      #   /media         : chemin vu par l'application — ne pas changer.
-      # Le dossier hôte doit exister avant le démarrage.
+      # À ADAPTER (obligatoire) — « dossier média sur le NAS:chemin conteneur ».
+      # Vérifie que le dossier hôte existe : ls -ld /volume1/media
+      #
+      # Deux approches possibles :
+      #
+      # a) Monter le dossier média exact (le plus simple) :
       - /volume1/media:/media
+      #
+      # b) Monter la racine du partage, puis choisir le sous-dossier dans
+      #    l'assistant (plus besoin de modifier le Compose ensuite) :
+      #      OMV      : - /srv:/srv
+      #      Synology : - /volume1:/volume1
+      #      Unraid   : - /mnt:/mnt
+      #
+      # Ne monte pas « / » : cela exposerait tout le NAS à l'application.
+      # À droite (/media, /srv...), ne pas changer : c'est le chemin vu par
+      # l'application, et il doit être dans allowed_roots de config.toml.
 
       # NE PAS CHANGER — « dossier du projet:/data ».
       #   ./data : dossier à côté de ce docker-compose.yml (données persistantes).

@@ -88,3 +88,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.7.0` | 2026-10-31 | Assistant de premier démarrage (choix du dossier média), `/api/setup`, racines Docker élargies, miroir Docker Hub optionnel. |
 | `v0.7.1` | 2026-10-31 | Port par défaut 8473 au lieu de 8080 (native, Docker, Compose), scan vers 8474/8475, documentation et smoke CI mis à jour. |
 | `v0.7.2` | 2026-10-31 | Installation Docker Compose simplifiée : `docker-compose.yml` publié avec la release, 3 valeurs à adapter, chemins hôte/conteneur explicités, config toujours auto-générée. |
+| `v0.7.3` | 2026-10-31 | Message d'erreur explicite si `/data` n'est pas inscriptible (UID + `chown`), montage média documenté (dossier exact ou racine `/srv`, `/volume1`, `/mnt`), dépannage « première configuration absente ». |

@@ -22,8 +22,12 @@ CONFIG_FILE="$DATA_ROOT/config.toml"
 
 mkdir -p "$DATA_ROOT"
 if [ ! -w "$DATA_ROOT" ]; then
-  echo "ERREUR : $DATA_ROOT n'est pas inscriptible par l'utilisateur du conteneur." >&2
-  echo "Vérifiez le propriétaire du volume (UID/GID via 'user:' dans Compose)." >&2
+  CURRENT_UID=$(id -u)
+  CURRENT_GID=$(id -g)
+  echo "ERREUR : $DATA_ROOT n'est pas inscriptible par l'utilisateur du conteneur (UID $CURRENT_UID)." >&2
+  echo "Sur l'hôte, corrigez le propriétaire du dossier monté, par exemple :" >&2
+  echo "  sudo chown -R $CURRENT_UID:$CURRENT_GID ./data" >&2
+  echo "ou adaptez 'user:' dans docker-compose.yml à l'UID/GID qui possède ./data." >&2
   exit 1
 fi
 
@@ -59,9 +63,15 @@ EOF
   echo "  🍊 Presse-Agrumes — première configuration"
   echo "=============================================================="
   echo "  Configuration : $CONFIG_FILE  (volume /data)"
-  echo "  Médias        : /media (montez votre partage ici)"
+  echo "  Racines autorisées : /media  /mnt  /srv  /volume1  /volume2"
+  echo "  Montez votre partage média sur l'une de ces racines, puis"
+  echo "  choisissez le dossier exact dans l'interface (assistant)."
   echo "  Utilisateur   : agrumes"
   echo "  Mot de passe  : $PASSWORD"
+  echo ""
+  echo "  Accès web     : http://<IP-du-NAS>:8473"
+  echo "                  (remplacez <IP-du-NAS> par l'adresse du NAS,"
+  echo "                   par exemple http://192.168.1.20:8473)"
   echo ""
   echo "  Notez ce mot de passe. Pour le modifier :"
   echo "    éditez /data/config.toml sur l'hôte, puis redémarrez."

@@ -4,7 +4,7 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+ghcr.io/cafe-soluble/presse-agrumes:0.7.3
 ghcr.io/cafe-soluble/presse-agrumes:0.7
 ```
 
@@ -26,6 +26,9 @@ premier démarrage.
 mkdir -p presse-agrumes/data
 cd presse-agrumes
 
+# Le conteneur tourne avec l'UID/GID de « user: » (1000 par défaut).
+sudo chown -R 1000:1000 data
+
 curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/download/docker-compose.yml
 ```
 
@@ -40,17 +43,29 @@ Ouvre `docker-compose.yml` et repère les lignes marquées **« À ADAPTER »** 
 | --- | --- | --- |
 | `user: "1000:1000"` | `UID:GID` | L'utilisateur qui possède `./data` et les médias. `id -u` et `id -g`. |
 | `- "8473:8473"` | `port navigateur:port interne` | À gauche, le port sur le NAS. À droite, 8473 : le port interne, ne pas changer. |
-| `- /volume1/media:/media` | `hôte:conteneur` | À gauche, le dossier média **réel sur le NAS**. À droite, `/media` : le chemin vu par l'application, ne pas changer. |
+| `- /volume1/media:/media` | `hôte:conteneur` | À gauche, le dossier média **réel sur le NAS** (il doit exister). À droite, `/media` : le chemin vu par l'application, ne pas changer. |
+
+Deux façons de monter les médias :
+
+- **dossier exact** : `- /volume1/media:/media`, ou `- /srv/media:/media` sur OMV ;
+- **racine du partage** : `- /srv:/srv` (OMV), `- /volume1:/volume1` (Synology),
+  `- /mnt:/mnt` (Unraid). L'assistant permet ensuite de choisir le sous-dossier,
+  sans retoucher le Compose.
+
+Vérifie le chemin hôte avant de démarrer : `ls -ld /srv`. Ne monte jamais `/`.
 
 ### 3. Démarrer
 
 ```bash
 docker compose up -d
-docker compose logs | grep -A6 "première configuration"
+docker compose ps
+docker compose logs --tail=50
 ```
 
-Le mot de passe est généré et affiché une seule fois. Ouvre ensuite
-`http://<ip-du-nas>:8473` avec l'utilisateur `agrumes`.
+Le mot de passe est généré et affiché une seule fois. Si la ligne
+« première configuration » n'apparaît pas, le conteneur s'est arrêté avant :
+voir la section Dépannage. Ouvre ensuite `http://<ip-du-nas>:8473` avec
+l'utilisateur `agrumes`.
 
 - La configuration est créée dans `./data/config.toml` (à côté du Compose).
 - Au premier lancement, un assistant propose de choisir le dossier média
@@ -97,7 +112,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.3
 
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
@@ -112,7 +127,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.7.2
+cafesoluble/presse-agrumes:0.7.3
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -132,7 +147,7 @@ Après leur ajout, pousse un nouveau tag (`v0.7.2`, `v0.8.0`…) pour publier le
 tags de version, puis :
 
 ```bash
-docker pull cafesoluble/presse-agrumes:0.7.2
+docker pull cafesoluble/presse-agrumes:0.7.3
 ```
 
 Les tags publiés sont `<version>`, `<major>.<minor>`, la branche, le SHA court
@@ -297,7 +312,7 @@ suivant évite un décalage UTC :
 Le Compose de la release épingle une version précise :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+image: ghcr.io/cafe-soluble/presse-agrumes:0.7.3
 ```
 
 Pour monter de version, remplace ce numéro par celui de la nouvelle release
@@ -335,10 +350,38 @@ docker inspect --format '{{json .State.Health}}' presse-agrumes
 
 ## Dépannage
 
+### Aucune ligne « première configuration »
+
+Le conteneur n'a pas pu créer `/data/config.toml` : il a quitté avant.
+
+```bash
+docker compose ps -a          # doit montrer Exited (1)
+docker compose logs --tail=50
+```
+
+Message typique :
+
+```text
+ERREUR : /data n'est pas inscriptible par l'utilisateur du conteneur (UID 1000).
+```
+
+Cause : `./data` appartient à root (ou à un autre UID) alors que le conteneur
+tourne avec `user: "1000:1000"`. Correction :
+
+```bash
+sudo chown -R 1000:1000 data
+docker compose up -d --force-recreate
+docker compose logs | sed -n '/première configuration/,+8p'
+```
+
+Adapte `1000:1000` aux valeurs de `user:` si tu les as changées.
+
 ### « Permission denied » sur `data/` ou les médias
 
-L'UID/GID du conteneur ne correspond pas au propriétaire. Adaptez `user:` et
-`chown`, ou vérifiez les ACL du partage.
+L'UID/GID du conteneur ne correspond pas au propriétaire. Adapte `user:` et
+fais `chown` sur `./data` (et éventuellement les médias), ou vérifie les ACL du
+partage. Le conteneur doit pouvoir **lire** les médias et **écrire** dans les
+dossiers de sortie pour la suppression/déplacement.
 
 ### Le conteneur redémarre en boucle
 

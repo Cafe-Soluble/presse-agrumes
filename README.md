@@ -157,6 +157,10 @@ la configuration est générée au premier démarrage.
 mkdir -p presse-agrumes/data
 cd presse-agrumes
 
+# Le conteneur tourne avec l'UID/GID de « user: » (1000 par défaut).
+# Le dossier ./data doit lui appartenir, sinon le conteneur s'arrête.
+sudo chown -R 1000:1000 data
+
 curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/download/docker-compose.yml
 ```
 
@@ -166,14 +170,29 @@ Ouvre `docker-compose.yml` et adapte les **3 valeurs marquées « À ADAPTER »*
 | --- | --- | --- |
 | `user: "1000:1000"` | `UID:GID` | propriétaire de `./data` et des médias (`id -u`, `id -g`) |
 | `- "8473:8473"` | `port navigateur:port interne` | à gauche le port sur le NAS ; à droite 8473, ne pas changer |
-| `- /volume1/media:/media` | `hôte:conteneur` | à gauche le dossier média **réel sur le NAS** ; à droite `/media`, ne pas changer |
+| `- /volume1/media:/media` | `hôte:conteneur` | à gauche le dossier média **réel sur le NAS** (il doit exister) ; à droite `/media`, ne pas changer |
+
+Deux façons de monter les médias :
+
+- **dossier exact** : `- /volume1/media:/media` (ou `/srv/media:/media` sur OMV) ;
+- **racine du partage** : `- /srv:/srv` (OMV), `- /volume1:/volume1` (Synology),
+  `- /mnt:/mnt` (Unraid). Tu choisis ensuite le sous-dossier dans l'assistant,
+  sans retoucher le Compose. Ne monte jamais `/`.
+
+Vérifie que le chemin hôte existe avant de démarrer : `ls -ld /srv`.
 
 Puis :
 
 ```bash
 docker compose up -d
-docker compose logs | grep -A6 "première configuration"
+docker compose ps
+docker compose logs --tail=50
 ```
+
+La ligne « première configuration » n'apparaît qu'au premier démarrage. Si elle
+est absente et que `docker compose ps -a` affiche `Exited (1)`, lis les logs :
+c'est presque toujours un problème de permissions sur `./data` (voir la section
+Dépannage).
 
 Le mot de passe généré n'est affiché qu'une fois. Ouvre ensuite
 `http://<ip-du-nas>:8473` avec l'utilisateur `agrumes`.
@@ -194,7 +213,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.3
 
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
@@ -501,7 +520,8 @@ fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
 lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une
 commande, configuration auto-générée), `v0.7.0` (assistant de premier
 démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
-`v0.7.2` (installation Compose en 3 valeurs, Compose publié avec la release).
+`v0.7.2` (installation Compose en 3 valeurs, Compose publié avec la release),
+`v0.7.3` (diagnostic permissions et choix du montage média).
 
 ## Dépannage
 
@@ -523,6 +543,25 @@ sudo chown media:media /opt/presse-agrumes/config.toml
 sudo chmod 600 /opt/presse-agrumes/config.toml
 sudo systemctl restart presse-agrumes
 ```
+
+### Aucune ligne « première configuration »
+
+Le conteneur n'a pas pu créer `/data/config.toml`. Vérifie :
+
+```bash
+docker compose ps -a
+docker compose logs --tail=50
+```
+
+Si le conteneur est `Exited (1)` avec « /data n'est pas inscriptible » :
+
+```bash
+sudo chown -R 1000:1000 data    # même UID:GID que « user: »
+docker compose up -d --force-recreate
+```
+
+Si le dossier média n'existe pas, Docker crée un dossier vide : adapte le
+chemin hôte dans `docker-compose.yml` (`ls -ld /srv` pour le trouver).
 
 ### Le port 8473 est déjà utilisé
 

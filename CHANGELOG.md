@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.7.3] — 2026-10-31
+
+### Modifié
+
+- **Démarrage Docker** : si `/data` n'est pas inscriptible, l'entrypoint affiche
+  l'UID du conteneur et la commande `chown` exacte à exécuter sur l'hôte. C'est
+  la cause la plus fréquente d'un conteneur qui s'arrête avant d'afficher le mot
+  de passe.
+- **Message de première configuration** : il liste les racines autorisées
+  (`/media`, `/mnt`, `/srv`, `/volume1`, `/volume2`) au lieu d'indiquer
+  uniquement `/media`, ce qui était trompeur quand le partage était monté
+  ailleurs, et affiche l'URL d'accès (`http://<IP-du-NAS>:8473`).
+- **`docker-compose.yml`** : étapes explicites `chown` + vérification des logs,
+  et deux stratégies de montage média (dossier exact ou racine du partage :
+  `/srv` sur OMV, `/volume1` sur Synology, `/mnt` sur Unraid).
+
+### Documentation
+
+- Dépannage « aucune ligne première configuration » (`Exited (1)`,
+  « /data n'est pas inscriptible », correction `chown`).
+- Rappel que l'assistant ne peut choisir que dans les chemins **déjà montés**,
+  et qu'il ne faut jamais monter `/`.
+
 ## [0.7.2] — 2026-10-31
 
 ### Modifié
