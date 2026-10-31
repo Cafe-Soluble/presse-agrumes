@@ -12,7 +12,7 @@ import {
   Tv,
 } from "lucide-react";
 import type { CompressionSettings, Hardware, Scan, ScanError, ScanItem } from "@/lib/types";
-import { estimateSeconds, selectionStats } from "@/lib/estimate";
+import { adjustedGain, estimateSeconds, selectionStats } from "@/lib/estimate";
 import {
   cn,
   errorCodeLabel,
@@ -104,18 +104,34 @@ export function ResultsPanel({
       );
     }
     const sorters: Record<Sort, (a: ScanItem, b: ScanItem) => number> = {
-      gain: (a, b) => (b.estimated_gain_bytes || 0) - (a.estimated_gain_bytes || 0),
-      gain_pct: (a, b) => (b.estimated_gain_percent || 0) - (a.estimated_gain_percent || 0),
+      gain: (a, b) => adjustedGain(b, settings.crf).bytes - adjustedGain(a, settings.crf).bytes,
+      gain_pct: (a, b) =>
+        adjustedGain(b, settings.crf).percent - adjustedGain(a, settings.crf).percent,
       size: (a, b) => (b.size_bytes || 0) - (a.size_bytes || 0),
       duration: (a, b) => (b.duration_sec || 0) - (a.duration_sec || 0),
       name: (a, b) => a.name.localeCompare(b.name, "fr"),
     };
     return items.sort(sorters[sort]);
-  }, [scan, filter, sort, search]);
+  }, [scan, filter, sort, search, settings.crf]);
 
   const visible = displayLimit === "all" ? filtered : filtered.slice(0, displayLimit);
   const stats = selectionStats(scan, selection, hardware, settings, resourcePercent, concurrency);
   const summary = scan.summary;
+
+  // Le scan calcule un gain de référence (CRF 32) ; on l'ajuste au CRF choisi
+  // pour que le résumé et les lignes réagissent au changement de qualité.
+  const adjustedSummary = useMemo(() => {
+    const gain = scan.items.reduce((sum, item) => {
+      if (isAlreadyAv1(item)) return sum;
+      return sum + adjustedGain(item, settings.crf).bytes;
+    }, 0);
+    const size = summary.total_size_bytes || 0;
+    return {
+      gain,
+      percent: size ? (gain / size) * 100 : 0,
+      output: Math.max(0, size - gain),
+    };
+  }, [scan.items, settings.crf, summary.total_size_bytes]);
 
   return (
     <Card className="glass-panel" id="results">
@@ -138,8 +154,8 @@ export function ResultsPanel({
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-5">
           <SummaryCard label="Éléments" value={formatNumber(summary.items_count)} hint={`${summary.pack_count} pack(s) · ${summary.file_count} fichier(s)`} />
           <SummaryCard label="Taille totale" value={summary.total_size_human} hint={`${formatNumber(summary.video_file_count)} vidéo(s)`} />
-          <SummaryCard label="Gain potentiel" value={summary.total_gain_human} hint={`${formatPercent(summary.total_gain_percent)} de la taille`} accent="success" />
-          <SummaryCard label="Après compression" value={summary.total_output_human} hint="estimation pessimiste" />
+          <SummaryCard label="Gain potentiel" value={formatBytes(adjustedSummary.gain)} hint={`${formatPercent(adjustedSummary.percent)} de la taille`} accent="success" />
+          <SummaryCard label="Après compression" value={formatBytes(adjustedSummary.output)} hint="estimation pessimiste" />
           <SummaryCard label="Durée vidéo" value={summary.total_duration_human} hint={`${summary.already_av1_count} déjà AV1`} />
         </div>
 
@@ -294,6 +310,7 @@ export function ResultsPanel({
                 settings={settings}
                 resourcePercent={resourcePercent}
                 concurrency={concurrency}
+                crf={settings.crf}
               />
             ))}
             {displayLimit !== "all" && filtered.length > displayLimit && (
@@ -377,6 +394,7 @@ function ItemRow({
   settings,
   resourcePercent,
   concurrency,
+  crf,
 }: {
   item: ScanItem;
   selected: boolean;
@@ -387,8 +405,10 @@ function ItemRow({
   settings: CompressionSettings;
   resourcePercent: number;
   concurrency: number;
+  crf: number;
 }) {
   const disabled = isAlreadyAv1(item);
+  const gain = adjustedGain(item, crf);
   const series = item.kind === "series";
   const recommendation = recommendationMeta(item.recommendation);
   const estimate = estimateSeconds(
@@ -478,7 +498,7 @@ function ItemRow({
             </Badge>
           )}
         </div>
-        {series && item.episodes && item.episodes.length > 0 && <EpisodesTable item={item} />}
+        {series && item.episodes && item.episodes.length > 0 && <EpisodesTable item={item} crf={crf} />}
       </div>
 
       <div className="col-start-2 flex flex-wrap items-center gap-x-5 gap-y-2 sm:col-start-auto sm:justify-end sm:text-right">
@@ -489,9 +509,9 @@ function ItemRow({
         <div>
           <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Gain</p>
           <p className={cn("text-xs font-semibold tabular-nums", !disabled && "text-success")}>
-            {disabled ? "—" : item.estimated_gain_human}
+            {disabled ? "—" : formatBytes(gain.bytes)}
           </p>
-          {!disabled && <p className="text-[10px] text-muted-foreground">{formatPercent(item.estimated_gain_percent)}</p>}
+          {!disabled && <p className="text-[10px] text-muted-foreground">{formatPercent(gain.percent)}</p>}
         </div>
         <div>
           <p className="text-[9px] uppercase tracking-wider text-muted-foreground">ETA</p>
@@ -520,7 +540,7 @@ function ItemRow({
   );
 }
 
-function EpisodesTable({ item }: { item: ScanItem }) {
+function EpisodesTable({ item, crf }: { item: ScanItem; crf: number }) {
   const episodes = item.episodes ?? [];
   return (
     <details className="mt-2 rounded-md border border-border/50 bg-background/30">
@@ -550,7 +570,9 @@ function EpisodesTable({ item }: { item: ScanItem }) {
                 <td className="py-1 pr-2 text-right tabular-nums">{episode.duration_human}</td>
                 <td className="py-1 pr-2 text-right tabular-nums">{episode.size_human}</td>
                 <td className="py-1 text-right tabular-nums">
-                  {episode.already_av1 ? "déjà AV1" : episode.estimated_gain_human}
+                  {episode.already_av1
+                    ? "déjà AV1"
+                    : formatBytes(adjustedGain(episode, crf).bytes)}
                 </td>
               </tr>
             ))}

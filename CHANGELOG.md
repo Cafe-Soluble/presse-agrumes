@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.1] — 2026-10-31
+
+### Corrigé
+
+- **Gain potentiel figé quel que soit le preset** : le scan calcule un gain de
+  référence (CRF 32) et l'interface l'affichait tel quel. Le gain est maintenant
+  ajusté au CRF choisi :
+  - « Archivage » (CRF 24) → gain plus faible, sortie plus grosse ;
+  - « Rapide » (CRF 34) → gain plus élevé, sortie plus petite.
+- L'ajustement s'applique au résumé « Gain potentiel / Après compression », aux
+  lignes et aux épisodes, au tri par gain, à la sortie estimée et au préflight
+  (donc à la vérification d'espace disque).
+
+### Technique
+
+- `media.adjusted_gain_for_crf` (serveur) et `adjustedGain` (miroir frontend)
+  utilisent la même formule : ±16 CRF ≈ ×2 sur le débit, avec bornes.
+- Tests : le préflight à CRF 24 doit estimer une sortie plus grosse qu'à CRF 34.
+
 ## [0.8.0] — 2026-10-31
 
 ### Ajouté

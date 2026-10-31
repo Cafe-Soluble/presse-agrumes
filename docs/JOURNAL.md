@@ -353,3 +353,15 @@
   hôte/conteneur, mises à jour, dépannage).
 - **Tests** : `test_update_password_preserves_other_settings`,
   `test_change_password_endpoint`, pytest 39, typecheck, build, Playwright.
+
+## 2026-10-31 — v0.8.1 : gain potentiel ajusté au CRF
+
+- **Bug** : le gain des fichiers venait du scan (`estimate_gain`, indépendant du
+  CRF) et ne changeait donc jamais entre Archivage et Rapide.
+- **Correction** : `media.adjusted_gain_for_crf(base, taille, crf)` avec référence
+  CRF 32 ; ±16 CRF ≈ ×2 sur le débit, bornes 2–98 %. Appliqué dans
+  `plan_compression` (sortie estimée, espace disque) et dans l'UI (résumé,
+  lignes, épisodes, tri) via le miroir `adjustedGain` de `lib/estimate.ts`.
+- **Tests** : `test_adjusted_gain_follows_crf` et
+  `test_preflight_output_depends_on_crf` (CRF 24 > CRF 34 en taille estimée).
+- **Release** : v0.8.1.

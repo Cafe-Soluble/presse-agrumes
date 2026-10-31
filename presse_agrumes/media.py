@@ -297,6 +297,28 @@ def estimate_gain(
     return final_factor, gain_bytes, bpp, estimated_output
 
 
+REFERENCE_CRF = 32
+
+
+def adjusted_gain_for_crf(
+    base_factor: float,
+    size_bytes: int,
+    crf: int,
+) -> tuple[float, int, int]:
+    """Ajuste le gain selon le CRF choisi (référence : CRF 32).
+
+    Chaque +16 CRF divise approximativement le débit par deux : monter le CRF
+    augmente le gain, le baisser (qualité supérieure) réduit le gain et
+    augmente la taille estimée.
+    """
+    output_ratio = min(0.98, max(0.02, 1.0 - float(base_factor)))
+    scale = 2 ** ((REFERENCE_CRF - int(crf)) / 16.0)
+    adjusted_output = min(0.98, max(0.02, output_ratio * scale))
+    factor = min(0.95, 1.0 - adjusted_output)
+    gain_bytes = int(size_bytes * factor) if size_bytes else 0
+    return round(factor, 3), gain_bytes, max(0, size_bytes - gain_bytes)
+
+
 def _pick_duration(fmt: dict, video_stream: dict) -> float:
     duration = _safe_float(fmt.get("duration"))
     if duration is None:

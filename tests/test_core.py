@@ -181,3 +181,12 @@ def test_series_marking_the_series_folder_itself(media_root: Path):
     # est déduit du parent.
     assert pack["name"].startswith("Breaking.Bad")
     assert "S01" in pack["name"]
+
+
+def test_adjusted_gain_follows_crf():
+    base = 0.4
+    low_crf = media.adjusted_gain_for_crf(base, 1_000_000, 24)
+    reference = media.adjusted_gain_for_crf(base, 1_000_000, 32)
+    high_crf = media.adjusted_gain_for_crf(base, 1_000_000, 34)
+    assert low_crf[0] < reference[0] < high_crf[0]
+    assert low_crf[2] > reference[2] > high_crf[2]

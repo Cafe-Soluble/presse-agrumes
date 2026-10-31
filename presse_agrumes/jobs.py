@@ -700,8 +700,16 @@ class JobManager:
                 })
                 continue
 
-            estimated_output = entry.get("estimated_output_bytes") or int(
-                entry.get("size_bytes", 0) * 0.6
+            input_size = int(entry.get("size_bytes") or 0)
+            base_factor = entry.get("estimated_gain_factor")
+            if base_factor is None:
+                base_factor = (
+                    float(entry.get("estimated_gain_bytes") or 0) / input_size
+                    if input_size
+                    else 0.0
+                )
+            gain_factor, gain_bytes, estimated_output = media.adjusted_gain_for_crf(
+                float(base_factor), input_size, settings.crf
             )
             free = shutil.disk_usage(destination.parent).free
             if free < estimated_output * 1.05:
@@ -723,7 +731,9 @@ class JobManager:
                 "filename": source.name,
                 "destination": str(destination),
                 "duration_sec": float(entry.get("duration_sec") or 0),
-                "input_size": int(entry.get("size_bytes") or 0),
+                "input_size": input_size,
+                "estimated_gain_bytes": gain_bytes,
+                "estimated_gain_percent": round(gain_factor * 100, 1),
                 "estimated_output_bytes": estimated_output,
                 "codec": entry.get("video_codec"),
                 "resolution": entry.get("resolution"),

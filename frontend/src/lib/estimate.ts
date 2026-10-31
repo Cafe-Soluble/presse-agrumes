@@ -1,6 +1,36 @@
 import type { CompressionSettings, Hardware, Scan, ScanItem } from "./types";
 import { itemFileCount } from "./utils";
 
+export const REFERENCE_CRF = 32;
+
+/**
+ * Miroir de `media.adjusted_gain_for_crf` côté serveur : chaque +16 CRF divise
+ * environ par deux le débit. Baisser le CRF (qualité supérieure) réduit le gain.
+ */
+export function adjustedGainFraction(baseFraction: number, crf: number) {
+  const base = Math.min(0.95, Math.max(0, baseFraction));
+  const outputRatio = Math.min(0.98, Math.max(0.02, 1 - base));
+  const scale = Math.pow(2, (REFERENCE_CRF - Number(crf)) / 16);
+  const adjustedOutput = Math.min(0.98, Math.max(0.02, outputRatio * scale));
+  return Math.min(0.95, 1 - adjustedOutput);
+}
+
+export function adjustedGain(
+  item: { size_bytes: number; estimated_gain_percent?: number },
+  crf: number,
+) {
+  const size = item.size_bytes || 0;
+  const baseFraction = (item.estimated_gain_percent || 0) / 100;
+  const fraction = adjustedGainFraction(baseFraction, crf);
+  const bytes = Math.round(size * fraction);
+  return {
+    fraction,
+    bytes,
+    percent: fraction * 100,
+    outputBytes: Math.max(0, size - bytes),
+  };
+}
+
 const FALLBACK_FPS: Record<string, Record<number, number>> = {
   libsvtav1: { 0: 2, 2: 6, 4: 13, 6: 24, 8: 42, 10: 70, 12: 115, 13: 140 },
   "libaom-av1": { 0: 1, 2: 2.5, 4: 5, 6: 7, 8: 10, 10: 13, 12: 16, 13: 18 },
@@ -76,7 +106,10 @@ export function selectionStats(
   const fileCount = items.reduce((sum, item) => sum + itemFileCount(item), 0);
   const duration = items.reduce((sum, item) => sum + (item.duration_sec || 0), 0);
   const size = items.reduce((sum, item) => sum + (item.size_bytes || 0), 0);
-  const output = items.reduce((sum, item) => sum + (item.estimated_output_bytes || 0), 0);
+  const output = items.reduce(
+    (sum, item) => sum + adjustedGain(item, settings.crf).outputBytes,
+    0,
+  );
   const estimate = estimateSeconds(
     duration,
     fileCount,

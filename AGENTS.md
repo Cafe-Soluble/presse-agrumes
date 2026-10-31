@@ -305,6 +305,10 @@ locale sans root.
 - **ETA** : le benchmark de calibration automatique utilise 1 s ; le benchmark
   manuel utilise 4 s. Le cache est par `encoder:preset:threads`. La durée
   réelle de ffmpeg (`speed`) recalcule l'ETA globale.
+- **Gain vs CRF** : `estimate_gain` (scan) est une référence à CRF 32.
+  `media.adjusted_gain_for_crf` et son miroir `adjustedGain` (frontend) ajustent
+  le gain au CRF choisi. Toute modification de la formule doit être faite des
+  deux côtés.
 
 ## Journal
 

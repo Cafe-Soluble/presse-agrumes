@@ -556,3 +556,28 @@ def test_change_password_endpoint(client, monkeypatch):
     finally:
         config.CONFIG_FILE.write_text(original, encoding="utf-8")
         config.apply_config_file(config.CONFIG_FILE)
+
+
+def test_preflight_output_depends_on_crf(client, media_root: Path):
+    # Le gain affiché doit varier avec la qualité choisie : CRF bas = sortie
+    # plus grosse (moins de gain), CRF haut = sortie plus petite.
+    scan = scan_root(client, media_root)
+    film = find_item(scan, "film.mp4")
+
+    def estimated_output(crf: int) -> int:
+        response = client.post(
+            "/api/preflight",
+            json={
+                "scan_id": scan["id"],
+                "item_ids": [film["id"]],
+                "settings": {**SETTINGS, "crf": crf},
+                "output": OUTPUT_NEW,
+                "originals": KEEP,
+                "resource_percent": 70,
+                "concurrency": 1,
+            },
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["total_estimated_output_bytes"]
+
+    assert estimated_output(24) > estimated_output(34)

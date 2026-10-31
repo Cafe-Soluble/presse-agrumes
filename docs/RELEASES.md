@@ -90,3 +90,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.7.2` | 2026-10-31 | Installation Docker Compose simplifiée : `docker-compose.yml` publié avec la release, 3 valeurs à adapter, chemins hôte/conteneur explicités, config toujours auto-générée. |
 | `v0.7.3` | 2026-10-31 | Message d'erreur explicite si `/data` n'est pas inscriptible (UID + `chown`), montage média documenté (dossier exact ou racine `/srv`, `/volume1`, `/mnt`), dépannage « première configuration absente ». |
 | `v0.8.0` | 2026-10-31 | Changement de mot de passe dans l'interface, annulation des analyses depuis la bannière, assistant/explorateur sans racine `/`, guide d'installation Compose pas-à-pas. |
+| `v0.8.1` | 2026-10-31 | Gain potentiel ajusté au CRF choisi (résultats, résumé, préflight, sortie estimée) au lieu d'une valeur fixe. |
