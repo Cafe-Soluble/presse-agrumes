@@ -28,7 +28,7 @@ RUN npm run build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 
-ARG APP_VERSION=0.10.0
+ARG APP_VERSION=0.10.1
 LABEL org.opencontainers.image.title="Presse-Agrumes" \
       org.opencontainers.image.description="Analyse et compression AV1 de bibliothèques vidéo" \
       org.opencontainers.image.source="https://github.com/Cafe-Soluble/presse-agrumes" \
@@ -37,8 +37,19 @@ LABEL org.opencontainers.image.title="Presse-Agrumes" \
 
 # ffmpeg/ffprobe pour l'analyse et l'encodage AV1 ; tini pour les signaux
 # (indispensable pour que la pause/reprise et l'arrêt propre fonctionnent).
+# ffmpeg/ffprobe, tini, et le support VAAPI : vainfo pour le diagnostic et les
+# pilotes userspace pour que /dev/dri soit réellement exploitable dans le
+# conteneur. Le pilote Intel non-free est amd64 uniquement.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg tini ca-certificates \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg tini ca-certificates vainfo libva2 libva-drm2 mesa-va-drivers \
+    && if [ "$(dpkg --print-architecture)" = "amd64" ]; then \
+         sed -i 's/^Components: main$/Components: main contrib non-free non-free-firmware/' \
+           /etc/apt/sources.list.d/debian.sources 2>/dev/null || true; \
+         apt-get update; \
+         apt-get install -y --no-install-recommends intel-media-va-driver-non-free \
+           || apt-get install -y --no-install-recommends i965-va-driver || true; \
+       fi \
     && rm -rf /var/lib/apt/lists/* \
     && ffmpeg -hide_banner -encoders 2>/dev/null | grep -Eq "libsvtav1|libaom-av1" \
     || (echo "ffmpeg sans encodeur AV1 dans l'image" >&2; exit 1)

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.1] - 2026-10-31
+
+### Corrigé
+
+- **VAAPI dans Docker** : l'image ne contenait ni `vainfo` ni pilote userspace,
+  donc `/dev/dri` seul ne suffisait pas. L'image installe maintenant `vainfo`,
+  `libva2`, `libva-drm2`, les pilotes Mesa et, en amd64, le pilote Intel
+  non-free avec repli sur i965.
+- **Documentation VAAPI** : montage de `/dev/dri`, groupes `video`/`render`,
+  recréation du conteneur, vérification avec `vainfo`, lecture du tableau de
+  diagnostic et causes d'échec.
+
 ## [0.10.0] - 2026-10-31
 
 ### Ajouté

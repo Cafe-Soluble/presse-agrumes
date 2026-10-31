@@ -410,3 +410,14 @@
   Matériel.
 - **Tests** : arguments libx265/hevc_vaapi, choix d'encodeur H.265 ; 45 pytest,
   typecheck, build, Playwright.
+
+## 2026-10-31 - v0.10.1 : pilotes VAAPI dans l'image
+
+- **Constat NAS** : le diagnostic affichait `/dev/dri/renderD128` absent, ce qui
+  est normal sans `devices:` dans Compose. Mais l'image n'embarquait pas non
+  plus vainfo ni pilote userspace, donc le GPU serait resté inutilisable.
+- **Dockerfile** : ajout de vainfo, libva2, libva-drm2, mesa-va-drivers ;
+  en amd64, activation de non-free et installation de
+  intel-media-va-driver-non-free, repli i965-va-driver.
+- **Docs** : procédure VAAPI complète (host, Compose, vérification, diagnostic).
+- **Release** : v0.10.1, image reconstruite.

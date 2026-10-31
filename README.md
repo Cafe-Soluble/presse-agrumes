@@ -262,7 +262,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.10.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.10.1
 
 docker logs presse-agrumes --tail=50
 ```
@@ -574,7 +574,8 @@ démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 `v0.8.1` (gain ajusté au CRF choisi), `v0.8.2` (analyse active conservée
 entre les vues), `v0.9.0` (espace disque, historique des compressions,
 création de dossiers, nettoyage des noms de codecs), `v0.10.0` (H.265,
-benchmark sur fichier réel, diagnostic VAAPI).
+benchmark sur fichier réel, diagnostic VAAPI), `v0.10.1` (pilotes VAAPI dans
+l'image Docker).
 
 ## Dépannage
 
