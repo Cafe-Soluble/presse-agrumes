@@ -26,6 +26,7 @@ import type {
   Warning,
 } from "@/lib/types";
 import { effectiveEncoder, selectionStats } from "@/lib/estimate";
+import { useDiskSpace } from "@/hooks/use-api";
 import {
   cn,
   formatBytes,
@@ -99,19 +100,36 @@ export function CompressionPanel({
 }: CompressionPanelProps) {
   const navigate = useNavigate();
   const stats = selectionStats(scan, selection, hardware, settings, resourcePercent, concurrency);
+  const diskPath =
+    output.mode === "custom_dir" && output.output_dir ? output.output_dir : scan.root;
+  const diskQuery = useDiskSpace(diskPath);
   const encoders = hardware?.ffmpeg.encoders ?? {};
   const vaapi = hardware?.gpu.vaapi_available;
   const logical = hardware?.cpu.logical_cores ?? 4;
   const threads = Math.max(1, Math.round((logical * resourcePercent) / 100));
   const perJob = Math.max(1, Math.floor(threads / Math.max(1, concurrency)));
   const warnings: Warning[] = [...(preflight?.warnings ?? []), ...(preflight?.skipped ?? [])];
+  const spaceInsufficient = Boolean(preflight && preflight.space_ok === false);
+  const nothingToDo = Boolean(preflight && preflight.file_count === 0 && selection.size > 0);
+  const partial = Boolean(
+    preflight &&
+      preflight.file_count > 0 &&
+      preflight.file_count < preflight.selected_source_count,
+  );
+  const cannotStart =
+    selection.size === 0 ||
+    startPending ||
+    preflightLoading ||
+    Boolean(preflightError) ||
+    spaceInsufficient ||
+    nothingToDo;
   const patch = (partial: Partial<CompressionSettings>) => onSettingsChange({ ...settings, ...partial });
 
   return (
     <Card className="glass-panel" id="compression">
       <CardHeader className="gap-3 pb-4">
         <div className="flex items-start gap-3">
-          <StepBadge step={3} />
+          <StepBadge step={2} />
           <div>
             <CardTitle>Réglages de compression</CardTitle>
             <CardDescription>
@@ -165,7 +183,7 @@ export function CompressionPanel({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="auto">
-                        Auto — {effectiveEncoder(hardware, { ...settings, encoder: "auto" })}
+                        Auto - {effectiveEncoder(hardware, { ...settings, encoder: "auto" })}
                       </SelectItem>
                       <SelectItem value="libsvtav1" disabled={!encoders.libsvtav1}>
                         SVT-AV1 (CPU rapide)
@@ -451,6 +469,25 @@ export function CompressionPanel({
                 </div>
               )}
 
+              {output.mode !== "same_dir_same_name" && (
+                <label className="mt-3 flex cursor-pointer items-start gap-2 text-xs text-muted-foreground">
+                  <Checkbox
+                    className="mt-0.5"
+                    checked={output.clean_codec_names ?? false}
+                    onCheckedChange={(checked) =>
+                      onOutputChange({ ...output, clean_codec_names: checked === true })
+                    }
+                  />
+                  <span>
+                    Nettoyer le nom (retirer x264, x265, H264, HEVC, AV1…)
+                    <span className="mt-0.5 block text-[10px]">
+                      Exemple : <code className="font-mono">Film.2024.1080p.x265-GROUP.mkv</code> →{" "}
+                      <code className="font-mono">Film.2024.1080p-GROUP.av1.mkv</code>
+                    </span>
+                  </span>
+                </label>
+              )}
+
               <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                 <Checkbox
                   checked={output.overwrite}
@@ -477,7 +514,22 @@ export function CompressionPanel({
                   label="Sortie estimée"
                   value={preflight?.total_estimated_output_human ?? formatBytes(stats.output)}
                 />
-                <EstimateRow label="Espace libre" value={preflight?.free_space_human ?? "à vérifier"} />
+                <EstimateRow
+                  label="Espace libre"
+                  value={
+                    preflight?.free_space_human ??
+                    diskQuery.data?.free_human ??
+                    "vérification…"
+                  }
+                />
+                <EstimateRow
+                  label="Disque"
+                  value={
+                    diskQuery.data
+                      ? `${diskQuery.data.used_percent} % utilisé sur ${diskQuery.data.total_human}`
+                      : "vérification…"
+                  }
+                />
                 <EstimateRow
                   label="Encodeur"
                   value={`${effectiveEncoder(hardware, settings)} · preset ${settings.preset}`}
@@ -539,12 +591,46 @@ export function CompressionPanel({
               </div>
             )}
 
+            {spaceInsufficient && (
+              <Alert variant="destructive" className="py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-[11px]">
+                  Espace insuffisant : sortie estimée{" "}
+                  <strong>{preflight?.total_estimated_output_human}</strong>, espace libre{" "}
+                  <strong>{preflight?.free_space_human}</strong>
+                  {preflight?.free_space_path ? ` sur ${preflight.free_space_path}` : ""}. Libère de
+                  l'espace ou choisis un autre dossier de sortie.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {partial && (
+              <Alert variant="warning" className="py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-[11px]">
+                  {preflight?.file_count} fichier(s) sur {preflight?.selected_source_count} peuvent
+                  être compressés. Les autres sont ignorés (espace, permissions ou conflit de
+                  sortie) : voir les avertissements ci-dessus.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {nothingToDo && (
+              <Alert variant="warning" className="py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-[11px]">
+                  Aucun fichier ne peut être compressé avec ces réglages. Consulte la liste des
+                  avertissements ci-dessus (espace, permissions, conflits de sortie).
+                </AlertDescription>
+              </Alert>
+            )}
+
             <Button
               type="button"
               size="lg"
               className="w-full"
               onClick={onStart}
-              disabled={selection.size === 0 || startPending}
+              disabled={cannotStart}
             >
               {startPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Rocket className="h-5 w-5" />}
               {startPending ? "Démarrage…" : "Lancer la compression"}

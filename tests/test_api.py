@@ -110,6 +110,8 @@ def test_scan_preflight_and_errors(client, media_root: Path):
     assert preflight["estimate"]["seconds"] > 0
     assert preflight["sample_destinations"]
     assert preflight["total_estimated_output_bytes"] > 0
+    assert preflight["space_ok"] is True
+    assert preflight["free_space_path"]
 
 
 def test_quality_test(client, media_root: Path):
@@ -581,3 +583,45 @@ def test_preflight_output_depends_on_crf(client, media_root: Path):
         return response.json()["total_estimated_output_bytes"]
 
     assert estimated_output(24) > estimated_output(34)
+
+
+def test_browse_create_folder(client, media_root: Path):
+    target = media_root / "Nouveau dossier test"
+    target.rmdir() if target.is_dir() and not any(target.iterdir()) else None
+
+    created = client.post(
+        "/api/browse/mkdir",
+        json={"parent": str(media_root), "name": "Nouveau dossier test"},
+    )
+    assert created.status_code == 200, created.text
+    assert Path(created.json()["path"]).is_dir()
+
+    duplicate = client.post(
+        "/api/browse/mkdir",
+        json={"parent": str(media_root), "name": "Nouveau dossier test"},
+    )
+    assert duplicate.status_code == 400
+
+    invalid = client.post(
+        "/api/browse/mkdir",
+        json={"parent": str(media_root), "name": "../evasion"},
+    )
+    assert invalid.status_code == 400
+
+    outside = client.post(
+        "/api/browse/mkdir",
+        json={"parent": "/etc", "name": "presse-agrumes-test"},
+    )
+    assert outside.status_code == 400
+
+    target.rmdir()
+
+
+def test_disk_space(client, media_root: Path):
+    response = client.get("/api/disk", params={"path": str(media_root)})
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["free_bytes"] > 0
+    assert payload["total_bytes"] >= payload["free_bytes"]
+    denied = client.get("/api/disk", params={"path": "/etc"})
+    assert denied.status_code == 400

@@ -103,7 +103,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <footer className="relative z-10 mx-auto mt-16 flex max-w-[1440px] flex-col gap-2 border-t border-border/60 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <span>
-          Presse-Agrumes v{health.data?.version ?? "0.1.0"} — outil prévu pour un réseau local de confiance.
+          Presse-Agrumes v{health.data?.version ?? "0.1.0"} - outil prévu pour un réseau local de confiance.
         </span>
         <span className="flex gap-4">
           <a href="/docs" target="_blank" rel="noreferrer" className="transition-colors hover:text-primary">

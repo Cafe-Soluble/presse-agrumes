@@ -15,6 +15,7 @@ import base64
 import hmac
 import json
 import mimetypes
+import shutil
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,7 @@ from .jobs import TERMINAL_STATUSES, manager
 from .models import (
     BenchmarkRequest,
     CompressRequest,
+    CreateFolderRequest,
     DeleteScanItems,
     PasswordChange,
     PreflightRequest,
@@ -134,7 +136,7 @@ def create_app() -> FastAPI:
             return FileResponse(FRONTEND_DIST / "index.html", media_type="text/html")
         return HTMLResponse(
             """<!doctype html><html lang="fr"><meta charset="utf-8">
-            <title>Presse-Agrumes — frontend non compilé</title>
+            <title>Presse-Agrumes - frontend non compilé</title>
             <body style="font-family:system-ui;background:#0d1015;color:#e9edf3;padding:3rem;line-height:1.6">
             <h1>🍊 Presse-Agrumes</h1>
             <p>L'interface React n'est pas encore compilée.</p>
@@ -264,6 +266,46 @@ npm run build</pre>
             "writable": paths.is_writable_dir(target),
         }
 
+    @app.post("/api/browse/mkdir")
+    async def create_folder(request: CreateFolderRequest):
+        parent = paths.guard_path(request.parent, must_exist=True)
+        if not parent.is_dir():
+            raise paths.PathError(f"{parent} n'est pas un dossier.")
+        if not paths.is_writable_dir(parent):
+            raise paths.PathError(f"Dossier non inscriptible : {parent}")
+        name = request.name.strip()
+        if not name or name in {".", ".."} or "/" in name or "\\" in name:
+            raise ValueError("Nom de dossier invalide.")
+        target = (parent / name).resolve()
+        if target.parent != parent.resolve():
+            raise paths.PathError("Chemin de dossier invalide.")
+        if target.exists():
+            raise ValueError(f"Le dossier existe déjà : {target.name}")
+        try:
+            target.mkdir()
+        except OSError as exc:
+            raise paths.PathError(f"Création impossible : {exc}") from exc
+        return {"path": str(target)}
+
+    @app.get("/api/disk")
+    async def disk_space(path: str = Query(..., min_length=1)):
+        target = paths.guard_path(path, must_exist=True)
+        if not target.is_dir():
+            target = target.parent
+        try:
+            usage = shutil.disk_usage(target)
+        except OSError as exc:
+            raise paths.PathError(f"Espace disque illisible pour {target} : {exc}") from exc
+        used_percent = round(usage.used / usage.total * 100, 1) if usage.total else 0
+        return {
+            "path": str(target),
+            "free_bytes": usage.free,
+            "free_human": media.human_size(usage.free),
+            "total_bytes": usage.total,
+            "total_human": media.human_size(usage.total),
+            "used_percent": used_percent,
+        }
+
     @app.get("/api/mounts")
     async def mounts():
         return {"roots": paths.common_roots(), "home": str(Path.home())}
@@ -345,6 +387,8 @@ npm run build</pre>
             ),
             "free_space_bytes": plan["free_space"],
             "free_space_human": media.human_size(plan["free_space"]),
+            "free_space_path": plan.get("free_space_path"),
+            "space_ok": plan.get("space_ok", True),
             "sample_destinations": [
                 {
                     "source": task["source"],

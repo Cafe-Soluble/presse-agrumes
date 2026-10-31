@@ -143,7 +143,7 @@ export function FolderStep({
             <span className="flex min-w-0 items-center gap-2">
               <Clock3 className="h-3.5 w-3.5 shrink-0" />
               Dernière analyse : <span className="truncate font-mono">{lastScan.root}</span>
-              <span className="hidden text-muted-foreground sm:inline">— {timeAgo(lastScan.created_at)}</span>
+              <span className="hidden text-muted-foreground sm:inline">- {timeAgo(lastScan.created_at)}</span>
             </span>
             <Button type="button" variant="ghost" size="sm" onClick={() => lastScan.id && onOpenLast(lastScan.id)}>
               Reprendre
@@ -270,7 +270,7 @@ export function FolderStep({
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             Exemple : <code className="rounded bg-secondary px-1 py-0.5 font-mono">Breaking Bad/S01/E01.mkv</code>{" "}
-            → un pack « Breaking Bad — S01 ».
+            → un pack « Breaking Bad - S01 ».
           </p>
         </div>
 

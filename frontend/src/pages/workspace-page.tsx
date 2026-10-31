@@ -77,6 +77,7 @@ const DEFAULT_OUTPUT: OutputOptions = {
   suffix: ".av1",
   output_dir: null,
   overwrite: false,
+  clean_codec_names: false,
 };
 
 const DEFAULT_ORIGINALS: OriginalOptions = { mode: "keep", trash_dir: null };
@@ -638,27 +639,6 @@ export function WorkspacePage() {
         )}
 
         {scan && (
-          <ResultsPanel
-            key={scan.id}
-            scan={scan}
-            selection={selection}
-            onToggle={toggleItem}
-            onSelectAll={(ids) => setSelection(new Set(ids))}
-            onClearSelection={() => setSelection(new Set())}
-            onTest={openTest}
-            onDeleteItem={(item) => setDeleteTarget({ kind: "item", item })}
-            onDeleteError={(path) => setDeleteTarget({ kind: "error", path })}
-            onCalibrate={() => calibrate.mutate()}
-            calibrating={calibrate.isPending}
-            onRescan={() => handleStartScan(scan.root)}
-            hardware={hardwareQuery.data}
-            settings={settings}
-            resourcePercent={resourcePercent}
-            concurrency={concurrency}
-          />
-        )}
-
-        {scan && (
           <CompressionPanel
             config={configQuery.data}
             hardware={hardwareQuery.data}
@@ -683,6 +663,27 @@ export function WorkspacePage() {
             onStart={requestCompression}
             startPending={startCompression.isPending}
             onBrowse={(mode, initialPath) => openBrowse(mode, initialPath)}
+          />
+        )}
+
+        {scan && (
+          <ResultsPanel
+            key={scan.id}
+            scan={scan}
+            selection={selection}
+            onToggle={toggleItem}
+            onSelectAll={(ids) => setSelection(new Set(ids))}
+            onClearSelection={() => setSelection(new Set())}
+            onTest={openTest}
+            onDeleteItem={(item) => setDeleteTarget({ kind: "item", item })}
+            onDeleteError={(path) => setDeleteTarget({ kind: "error", path })}
+            onCalibrate={() => calibrate.mutate()}
+            calibrating={calibrate.isPending}
+            onRescan={() => handleStartScan(scan.root)}
+            hardware={hardwareQuery.data}
+            settings={settings}
+            resourcePercent={resourcePercent}
+            concurrency={concurrency}
           />
         )}
 
@@ -711,7 +712,7 @@ export function WorkspacePage() {
                     {formatNumber(scansQuery.data.length)} analyse(s) dans l'historique
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Dernière : {lastScan?.root} — gain potentiel {lastScan?.total_gain_human}.
+                    Dernière : {lastScan?.root} - gain potentiel {lastScan?.total_gain_human}.
                   </p>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 # =============================================================================
-# Presse-Agrumes — Docker Compose
+# Presse-Agrumes - Docker Compose
 # =============================================================================
 # Installation recommandée. Aucun config.toml à créer : il est généré dans
 # ./data au premier démarrage, avec un mot de passe aléatoire affiché dans les
@@ -24,23 +24,23 @@
 # =============================================================================
 services:
   presse-agrumes:
-    image: ghcr.io/cafe-soluble/presse-agrumes:0.8.2
+    image: ghcr.io/cafe-soluble/presse-agrumes:0.9.0
     container_name: presse-agrumes
 
-    # À ADAPTER — UID:GID qui possède ./data et les médias.
+    # À ADAPTER - UID:GID qui possède ./data et les médias.
     # Trouver les valeurs avec : id -u && id -g
     # Exemples : Synology 1026:100, Unraid 99:100, utilisateur classique 1000:1000.
     user: "1000:1000"
 
     ports:
-      # À ADAPTER — « port du navigateur:port interne ».
+      # À ADAPTER - « port du navigateur:port interne ».
       #   À gauche  : port sur le NAS (celui que tu ouvres dans le navigateur).
-      #   À droite  : 8473, port interne de l'application — ne pas changer,
+      #   À droite  : 8473, port interne de l'application - ne pas changer,
       #               sauf si [server] port est modifié dans ./data/config.toml.
       - "8473:8473"
 
     volumes:
-      # À ADAPTER (obligatoire) — « dossier média sur le NAS:chemin conteneur ».
+      # À ADAPTER (obligatoire) - « dossier média sur le NAS:chemin conteneur ».
       # Vérifie que le dossier hôte existe : ls -ld /volume1/media
       #
       # Deux approches possibles :
@@ -58,16 +58,16 @@ services:
       # À droite (/media, /srv...), ne pas changer : c'est le chemin vu par
       # l'application, et il doit être dans allowed_roots de config.toml.
 
-      # NE PAS CHANGER — « dossier du projet:/data ».
+      # NE PAS CHANGER - « dossier du projet:/data ».
       #   ./data : dossier à côté de ce docker-compose.yml (données persistantes).
       #   /data  : configuration générée, scans, jobs, tests, benchmarks.
       # Il doit exister et être inscriptible par l'UID défini dans user:.
       - ./data:/data
 
-      # Optionnel — fuseau horaire du NAS (planification aux heures locales).
+      # Optionnel - fuseau horaire du NAS (planification aux heures locales).
       - /etc/localtime:/etc/localtime:ro
 
-    # Optionnel — accélération VAAPI (si /dev/dri existe sur le NAS) :
+    # Optionnel - accélération VAAPI (si /dev/dri existe sur le NAS) :
     # devices:
     #   - /dev/dri:/dev/dri
     # group_add:

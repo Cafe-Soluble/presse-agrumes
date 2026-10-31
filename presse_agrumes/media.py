@@ -16,6 +16,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -92,7 +93,7 @@ def human_size(num_bytes: float | None) -> str:
 
 def human_duration(seconds: float | None) -> str:
     if not seconds or seconds < 0:
-        return "—"
+        return "-"
     seconds = int(round(seconds))
     days, rest = divmod(seconds, 86400)
     hours, rest = divmod(rest, 3600)
@@ -581,11 +582,38 @@ def container_extension(container: str) -> str:
     return CONTAINER_EXT.get(container, ".mkv")
 
 
-def output_filename(source: Path, settings, output_mode: str, suffix: str) -> str:
+_CODEC_TOKEN_RE = re.compile(
+    r"(?i)(?<![a-z0-9])(?:x264|x265|h\.?264|h\.?265|hevc|avc|av1|vp9|xvid|divx|10bit|8bit|hdr10)(?![a-z0-9])"
+)
+
+
+def _collapse_separators(match: re.Match[str]) -> str:
+    separators = match.group(0)
+    for separator in ("-", "_", " "):
+        if separator in separators:
+            return separator
+    return "."
+
+
+def strip_codec_tokens(stem: str) -> str:
+    """Retire les marqueurs de codec du nom (x265, H264, HEVC, AV1...)."""
+    cleaned = _CODEC_TOKEN_RE.sub("", stem)
+    cleaned = re.sub(r"[._\-\s]{2,}", _collapse_separators, cleaned).strip(" ._-")
+    return cleaned or stem
+
+
+def output_filename(
+    source: Path,
+    settings,
+    output_mode: str,
+    suffix: str,
+    clean_codec: bool = False,
+) -> str:
     if output_mode == "same_dir_same_name":
         return source.stem + container_extension(settings.container)
+    stem = strip_codec_tokens(source.stem) if clean_codec else source.stem
     cleaned = suffix.strip() or "av1"
-    return f"{source.stem}.{cleaned}{container_extension(settings.container)}"
+    return f"{stem}.{cleaned}{container_extension(settings.container)}"
 
 
 def build_compress_command(

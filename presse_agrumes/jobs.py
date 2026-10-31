@@ -458,7 +458,7 @@ class JobManager:
                 job.update_progress(
                     phase="walking",
                     message=(
-                        f"{info['dirs_scanned']} dossiers parcourus — "
+                        f"{info['dirs_scanned']} dossiers parcourus - "
                         f"{info['files_found']} vidéos trouvées"
                     ),
                     current=info.get("current_dir"),
@@ -528,7 +528,7 @@ class JobManager:
                         percent=round(done / total * 100, 1) if total else 100,
                         current=entry.get("path"),
                         message=(
-                            f"{done}/{total} — {entry.get('filename') or '?'}"
+                            f"{done}/{total} - {entry.get('filename') or '?'}"
                             + (" (erreur)" if entry.get("error") else "")
                         ),
                         eta_seconds=round(eta, 1) if eta else None,
@@ -634,6 +634,8 @@ class JobManager:
         seen_outputs: set[str] = set()
         total_duration = 0.0
         total_estimated_output = 0
+        min_free_space: int | None = None
+        min_free_path: Path | None = None
         ext = media.container_extension(settings.container)
 
         for entry in files:
@@ -652,12 +654,13 @@ class JobManager:
                 destination = source.with_suffix(ext)
             elif output.mode == "same_dir_new_name":
                 destination = source.with_name(
-                    media.output_filename(source, settings, output.mode, output.suffix)
+                    media.output_filename(source, settings, output.mode, output.suffix, output.clean_codec_names)
                 )
             else:
                 relative_parent = Path(entry.get("relative_path") or source.name).parent
                 destination = output_dir / relative_parent / media.output_filename(
-                    source, settings, output.mode, output.suffix
+                    source, settings, output.mode, output.suffix,
+                    output.clean_codec_names,
                 )
 
             destination = destination.resolve()
@@ -712,6 +715,9 @@ class JobManager:
                 float(base_factor), input_size, settings.crf
             )
             free = shutil.disk_usage(destination.parent).free
+            if min_free_space is None or free < min_free_space:
+                min_free_space = free
+                min_free_path = destination.parent
             if free < estimated_output * 1.05:
                 skipped.append({
                     "path": str(source),
@@ -788,9 +794,18 @@ class JobManager:
             "total_duration_sec": round(total_duration, 2),
             "total_input_bytes": sum(t["input_size"] for t in tasks),
             "total_estimated_output_bytes": total_estimated_output,
-            "free_space": shutil.disk_usage(
-                (output_dir or root).resolve()
-            ).free,
+            "free_space": (
+                min_free_space
+                if min_free_space is not None
+                else shutil.disk_usage((output_dir or root).resolve()).free
+            ),
+            "free_space_path": str(min_free_path) if min_free_path else str((output_dir or root).resolve()),
+            "space_ok": total_estimated_output
+            <= (
+                min_free_space
+                if min_free_space is not None
+                else shutil.disk_usage((output_dir or root).resolve()).free
+            ),
             "threads": max(1, round(logical * request.resource_percent / 100)),
         }
 
@@ -836,7 +851,7 @@ class JobManager:
         if job.next_resume_at:
             try:
                 next_start = datetime.fromisoformat(job.next_resume_at)
-                message += f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
+                message += f" - reprise {next_start.strftime('%d/%m à %H:%M')}"
             except ValueError:
                 pass
         job.update_progress(message=message, eta_seconds=None)
@@ -1170,7 +1185,7 @@ class JobManager:
             job.update_progress(
                 phase="compressing",
                 percent=round(overall, 1),
-                message=f"{task['filename']} — {percent:.0f}%" if percent else task["filename"],
+                message=f"{task['filename']} - {percent:.0f}%" if percent else task["filename"],
                 current=task["filename"],
                 speed=speed,
                 fps=info.get("fps"),
@@ -1273,7 +1288,7 @@ class JobManager:
                         message=(
                             "Hors plage horaire : pause automatique"
                             + (
-                                f" — reprise {next_start.strftime('%d/%m à %H:%M')}"
+                                f" - reprise {next_start.strftime('%d/%m à %H:%M')}"
                                 if next_start else ""
                             )
                         ),
@@ -1379,7 +1394,7 @@ class JobManager:
 
     # -- test qualité -----------------------------------------------------
     def start_test(self, request: TestRequest) -> Job:
-        label = f"Test qualité — {Path(request.path).name}"
+        label = f"Test qualité - {Path(request.path).name}"
         job = self._new_job("test", label, {"path": request.path})
         self._persist(job)
         thread = threading.Thread(

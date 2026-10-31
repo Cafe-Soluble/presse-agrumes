@@ -1,6 +1,36 @@
 # Changelog
 
-## [0.8.2] — 2026-10-31
+## [0.9.0] - 2026-10-31
+
+### Ajouté
+
+- **Création de dossier** dans l'explorateur (corbeille, dossier de sortie,
+  séries, racine), avec validation du nom et des permissions.
+- **Espace disque** : espace libre et taux d'utilisation visibles, contrôle
+  avant lancement, blocage si la sortie estimée dépasse l'espace libre, et
+  avertissement lorsqu'une partie seulement des fichiers peut être compressée.
+- **Historique des compressions** : jobs terminés, annulés ou en erreur, avec
+  nombre de fichiers, gain réel, encodeur et échecs.
+- **Nettoyage des noms** : option pour retirer x264, x265, H264, H265, HEVC,
+  AV1 et variantes du nom de sortie.
+- **Téléchargement des extraits de test** : bouton de téléchargement sur chaque
+  aperçu, tailles explicites pour l'aperçu et la copie brute, explication de la
+  différence de taille et d'audio.
+
+### Modifié
+
+- **Ordre de la page** : Réglages de compression (étape 2) avant Résultats de
+  l'analyse (étape 3).
+- **Typographie** : suppression de tous les tirets cadratins du projet et règle
+  ajoutée dans `AGENTS.md`.
+
+### Corrigé
+
+- Confusion sur l'extrait original de test : l'aperçu H.264/AAC (9,2 Mo dans
+  l'exemple) et la copie brute MKV (27,3 Mo) sont deux fichiers différents,
+  désormais clairement étiquetés et téléchargeables séparément.
+
+## [0.8.2] - 2026-10-31
 
 ### Corrigé
 
@@ -11,7 +41,7 @@
 - Si l'analyse mémorisée n'existe plus, l'alerte propose un bouton **Fermer**
   qui efface la référence au lieu de bloquer la page.
 
-## [0.8.1] — 2026-10-31
+## [0.8.1] - 2026-10-31
 
 ### Corrigé
 
@@ -30,7 +60,7 @@
   utilisent la même formule : ±16 CRF ≈ ×2 sur le débit, avec bornes.
 - Tests : le préflight à CRF 24 doit estimer une sortie plus grosse qu'à CRF 34.
 
-## [0.8.0] — 2026-10-31
+## [0.8.0] - 2026-10-31
 
 ### Ajouté
 
@@ -57,7 +87,7 @@
   d'auto-hébergement grand public.
 - Documentation API et compose mise à jour (version `0.8.0`).
 
-## [0.7.3] — 2026-10-31
+## [0.7.3] - 2026-10-31
 
 ### Modifié
 
@@ -80,7 +110,7 @@
 - Rappel que l'assistant ne peut choisir que dans les chemins **déjà montés**,
   et qu'il ne faut jamais monter `/`.
 
-## [0.7.2] — 2026-10-31
+## [0.7.2] - 2026-10-31
 
 ### Modifié
 
@@ -97,7 +127,7 @@
 - **CI** : job `release` qui publie le Compose en asset de release pour les
   tags `v*`.
 
-## [0.7.1] — 2026-10-31
+## [0.7.1] - 2026-10-31
 
 ### Modifié
 
@@ -113,7 +143,7 @@
 > Les installations existantes conservent le port de leur `config.toml` ; seule
 > une configuration générée ou le fichier du dépôt change.
 
-## [0.7.0] — 2026-10-31
+## [0.7.0] - 2026-10-31
 
 ### Ajouté
 
@@ -139,7 +169,7 @@
 - Test e2e : fermeture de l'assistant sur une installation neuve ; « Plus
   tard » reste mémorisé (localStorage) et ne réapparaît plus à chaque visite.
 
-## [0.6.0] — 2026-10-30
+## [0.6.0] - 2026-10-30
 
 ### Modifié
 
@@ -155,7 +185,7 @@
   `/healthz` et de la création de `/data/config.toml`.
 - Documentation Docker simplifiée (une commande + `docker logs`).
 
-## [0.5.0] — 2026-10-30
+## [0.5.0] - 2026-10-30
 
 ### Ajouté
 
@@ -175,15 +205,15 @@
 - La configuration reste exclusivement `config.toml` ; aucun `Environment=`.
 - Le `.deb` et un dépôt APT restent prévus dans une prochaine version.
 
-## [0.4.1] — 2026-10-30
+## [0.4.1] - 2026-10-30
 
 - Suppression du dernier recours à une variable de shell (`PYTHON`) dans
   `run.sh` : le lancement utilise `python3`, conformément à la configuration
   uniquement par fichier.
 
-## [0.4.0] — 2026-10-30
+## [0.4.0] - 2026-10-30
 
-### Modifié — rupture de configuration
+### Modifié - rupture de configuration
 
 - **Suppression totale des variables d'environnement** pour la configuration.
   Seul `config.toml` est lu (ou le fichier passé à `--config`).
@@ -199,7 +229,7 @@
 - Tests : configuration temporaire appliquée via `config.apply_config_file`,
   Playwright sur un backend dédié (port 8099, auth désactivée).
 
-## [0.3.0] — 2026-10-30
+## [0.3.0] - 2026-10-30
 
 ### Ajouté
 
@@ -224,7 +254,7 @@
   sont trop larges).
 - Version 0.3.0.
 
-## [0.2.0] — 2026-10-30
+## [0.2.0] - 2026-10-30
 
 ### Ajouté
 
@@ -256,7 +286,7 @@
   tâches en cours.
 - Nouvelles routes `POST /api/jobs/{id}/pause` et `/resume`.
 
-## [0.1.0] — 2026-10-30
+## [0.1.0] - 2026-10-30
 
 Première version fonctionnelle.
 

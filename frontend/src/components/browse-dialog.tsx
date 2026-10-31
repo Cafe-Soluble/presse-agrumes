@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowUp, ChevronRight, Folder, FolderTree, Link2, Lock, Tv } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowUp, ChevronRight, Folder, FolderPlus, FolderTree, Link2, Lock, Tv } from "lucide-react";
 import { api } from "@/lib/api";
 import type { BrowseEntry } from "@/lib/types";
 import { useMounts } from "@/hooks/use-api";
@@ -45,7 +45,12 @@ export function BrowseDialog({
   onMarkSeries,
 }: BrowseDialogProps) {
   const mountsQuery = useMounts();
+  const queryClient = useQueryClient();
   const roots = mountsQuery.data?.roots ?? [];
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creatingPending, setCreatingPending] = useState(false);
 
   // Sans chemin initial, on ouvre sur une racine réellement autorisée. En
   // Docker, « / » est hors périmètre : on ne le propose jamais par défaut.
@@ -101,6 +106,24 @@ export function BrowseDialog({
     onMarkSeries?.(data.path);
   };
 
+  const createFolder = async () => {
+    const name = newName.trim();
+    if (!name || !path) return;
+    setCreatingPending(true);
+    setCreateError(null);
+    try {
+      const created = await api.createFolder(path, name);
+      await queryClient.invalidateQueries({ queryKey: ["browse", path] });
+      setCreating(false);
+      setNewName("");
+      navigate(created.path);
+    } catch (err) {
+      setCreateError((err as Error).message);
+    } finally {
+      setCreatingPending(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
@@ -154,7 +177,57 @@ export function BrowseDialog({
           <Button type="button" variant="secondary" onClick={() => navigate(input.trim())}>
             Ouvrir
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            title="Créer un dossier ici"
+            aria-label="Créer un dossier"
+            disabled={!data}
+            onClick={() => {
+              setCreating((value) => !value);
+              setCreateError(null);
+            }}
+          >
+            <FolderPlus className="h-4 w-4" />
+          </Button>
         </div>
+
+        {creating && (
+          <div className="space-y-1">
+            <div className="flex gap-2">
+              <Input
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") void createFolder();
+                }}
+                placeholder="Nom du nouveau dossier"
+                aria-label="Nom du nouveau dossier"
+                autoFocus
+              />
+              <Button
+                type="button"
+                onClick={() => void createFolder()}
+                disabled={creatingPending || !newName.trim()}
+              >
+                {creatingPending ? "Création…" : "Créer"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setCreating(false);
+                  setNewName("");
+                  setCreateError(null);
+                }}
+              >
+                Annuler
+              </Button>
+            </div>
+            {createError && <p className="text-[11px] text-destructive">{createError}</p>}
+          </div>
+        )}
 
         {browse.isError && (
           <Alert variant="destructive">

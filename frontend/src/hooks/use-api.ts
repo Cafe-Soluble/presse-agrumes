@@ -37,6 +37,23 @@ export function useSetup() {
   });
 }
 
+export function useDiskSpace(path?: string) {
+  return useQuery({
+    queryKey: ["disk", path],
+    queryFn: () => api.disk(path as string),
+    enabled: Boolean(path),
+    staleTime: 30_000,
+  });
+}
+
+export function useJobHistory() {
+  return useQuery({
+    queryKey: ["jobs", "history"],
+    queryFn: () => api.jobs(100),
+    staleTime: 30_000,
+  });
+}
+
 export function useScans() {
   return useQuery({
     queryKey: ["scans"],

@@ -1,5 +1,5 @@
 # =============================================================================
-# Presse-Agrumes — configuration unique
+# Presse-Agrumes - configuration unique
 # =============================================================================
 # Ce fichier est versionné avec le projet. En production, changez au minimum
 # le mot de passe ci-dessous, puis restreignez allowed_roots à vos partages.

@@ -174,7 +174,7 @@ export function JobPanel({
                 ? pauseReasons.map(pauseReasonLabel).join(" + ")
                 : "Compression en pause"}
               {job.next_resume_at
-                ? ` — reprise automatique prévue le ${formatDateTime(job.next_resume_at)}`
+                ? ` - reprise automatique prévue le ${formatDateTime(job.next_resume_at)}`
                 : ""}
               . Les processus ffmpeg sont suspendus, aucun travail n'est perdu.
             </AlertDescription>
@@ -277,7 +277,7 @@ export function JobPanel({
             </p>
             <p className="mt-1 text-xs text-emerald-100/90">
               {formatNumber(result.success)} fichier(s) réussi(s)
-              {result.failed ? `, ${result.failed} échec(s)` : ""} — {formatBytes(result.saved_bytes)} gagnés
+              {result.failed ? `, ${result.failed} échec(s)` : ""} - {formatBytes(result.saved_bytes)} gagnés
               ({formatPercent(result.saved_percent)}) en {formatDuration(result.elapsed_seconds)}.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">

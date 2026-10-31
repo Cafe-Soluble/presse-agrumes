@@ -13,7 +13,7 @@ export function formatNumber(value: number | null | undefined) {
 }
 
 export function formatBytes(bytes: number | null | undefined) {
-  if (bytes === null || bytes === undefined || Number.isNaN(Number(bytes))) return "—";
+  if (bytes === null || bytes === undefined || Number.isNaN(Number(bytes))) return "-";
   let value = Number(bytes);
   if (value < 1024) return `${Math.round(value)} o`;
   const units = ["Ko", "Mo", "Go", "To", "Po"];
@@ -26,7 +26,7 @@ export function formatBytes(bytes: number | null | undefined) {
 }
 
 export function formatDuration(seconds: number | null | undefined) {
-  if (!seconds || seconds <= 0) return "—";
+  if (!seconds || seconds <= 0) return "-";
   const total = Math.round(seconds);
   const days = Math.floor(total / 86400);
   const hours = Math.floor((total % 86400) / 3600);
@@ -52,7 +52,7 @@ export function formatPercent(value: number | null | undefined) {
 }
 
 export function formatBits(bitsPerSecond: number | null | undefined) {
-  if (!bitsPerSecond) return "—";
+  if (!bitsPerSecond) return "-";
   const mbps = bitsPerSecond / 1_000_000;
   return `${mbps.toFixed(mbps >= 10 ? 1 : 2)} Mbps`;
 }

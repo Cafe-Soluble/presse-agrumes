@@ -13,8 +13,8 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { ScanSummary } from "@/lib/types";
-import { useScans } from "@/hooks/use-api";
+import type { JobSnapshot, ScanSummary } from "@/lib/types";
+import { useJobHistory, useScans } from "@/hooks/use-api";
 import { formatBytes, formatNumber, formatPercent, timeAgo } from "@/lib/utils";
 import { PageContainer, PageHeader, EmptyState } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,8 @@ export function HistoryPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const scans = useScans();
+  const jobHistory = useJobHistory();
+  const compressions = (jobHistory.data?.jobs ?? []).filter((job) => job.kind === "compress");
   const [toDelete, setToDelete] = useState<ScanSummary | null>(null);
 
   const remove = useMutation({
@@ -55,14 +57,21 @@ export function HistoryPage() {
     <PageContainer>
       <PageHeader
         eyebrow="Bibliothèque"
-        title="Historique des analyses"
-        description="Reprenez une analyse existante sans rescanner le NAS. Seuls les index sont conservés : aucun fichier vidéo n'est touché."
+        title="Historique"
+        description="Reprenez une analyse sans rescanner le NAS et consultez les compressions effectuées. Seuls les index et les journaux sont conservés : aucun fichier vidéo n'est touché."
         actions={
           <Button variant="outline" onClick={() => navigate("/")}>
             <FolderOpen className="h-4 w-4" /> Nouvelle analyse
           </Button>
         }
       />
+
+      <div className="mb-3">
+        <h2 className="text-lg font-semibold tracking-tight">Analyses</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Index des dossiers scannés, réutilisables sans nouvelle analyse.
+        </p>
+      </div>
 
       {scans.isLoading && (
         <div className="grid gap-3">
@@ -138,6 +147,41 @@ export function HistoryPage() {
         ))}
       </div>
 
+      <div className="mt-10 space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Compressions</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Jobs de compression terminés, annulés ou en erreur, avec le gain réellement obtenu.
+          </p>
+        </div>
+
+        {jobHistory.isLoading && (
+          <div className="h-20 animate-pulse rounded-xl border border-border bg-card/50" />
+        )}
+
+        {jobHistory.isError && (
+          <Card>
+            <CardContent className="py-6 text-center text-sm text-destructive">
+              Impossible de charger les compressions : {(jobHistory.error as Error).message}
+            </CardContent>
+          </Card>
+        )}
+
+        {!jobHistory.isLoading && compressions.length === 0 && (
+          <Card>
+            <CardContent className="py-6 text-center text-sm text-muted-foreground">
+              Aucune compression effectuée pour le moment.
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid gap-3">
+          {compressions.map((job) => (
+            <CompressionHistoryRow key={job.id} job={job} />
+          ))}
+        </div>
+      </div>
+
       <AlertDialog open={Boolean(toDelete)} onOpenChange={(open) => !open && setToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -164,5 +208,63 @@ export function HistoryPage() {
         </AlertDialogContent>
       </AlertDialog>
     </PageContainer>
+  );
+}
+
+function CompressionHistoryRow({ job }: { job: JobSnapshot }) {
+  const result = job.result ?? {};
+  const encoder = result.encoder ? String(result.encoder) : null;
+  const savedBytes = Number(result.saved_bytes ?? 0);
+  const savedPercent = Number(result.saved_percent ?? 0);
+  const success = Number(result.success ?? 0);
+  const failed = Number(result.failed ?? 0);
+  const total = Number(result.total ?? success + failed);
+  const variant =
+    job.status === "done" ? "success" : job.status === "error" ? "destructive" : "warning";
+  const label =
+    job.status === "done"
+      ? "terminée"
+      : job.status === "error"
+        ? "erreur"
+        : job.status === "cancelled"
+          ? "annulée"
+          : job.status;
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3 p-5 lg:flex-row lg:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={variant} className="text-[10px]">
+              {label}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {timeAgo(job.finished_at || job.created_at)}
+            </span>
+            {encoder && (
+              <Badge variant="secondary" className="text-[10px]">
+                {encoder}
+              </Badge>
+            )}
+          </div>
+          <p className="mt-2 truncate text-sm font-medium">{job.label}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Film className="h-3 w-3" /> {formatNumber(success)}/{formatNumber(total)} fichier(s)
+            </span>
+            {savedBytes > 0 ? (
+              <span className="flex items-center gap-1 text-success">
+                <TrendingDown className="h-3 w-3" /> {formatBytes(savedBytes)} économisés (
+                {formatPercent(savedPercent)})
+              </span>
+            ) : (
+              <span>{formatBytes(Number(result.output_bytes ?? 0))} produits</span>
+            )}
+            {failed > 0 && <span className="text-destructive">{failed} échec(s)</span>}
+            {job.error && <span className="truncate text-destructive">{job.error}</span>}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -105,9 +105,9 @@ export function HardwarePage() {
           title="Processeur"
           main={hardware.cpu.model}
           rows={[
-            ["Cœurs physiques", hardware.cpu.physical_cores ? String(hardware.cpu.physical_cores) : "—"],
+            ["Cœurs physiques", hardware.cpu.physical_cores ? String(hardware.cpu.physical_cores) : "-"],
             ["Threads logiques", String(hardware.cpu.logical_cores)],
-            ["Fréquence moyenne", hardware.cpu.mhz ? `${hardware.cpu.mhz} MHz` : "—"],
+            ["Fréquence moyenne", hardware.cpu.mhz ? `${hardware.cpu.mhz} MHz` : "-"],
           ]}
         />
         <SpecCard
@@ -133,8 +133,8 @@ export function HardwarePage() {
           title="ffmpeg"
           main={hardware.ffmpeg.version?.split(" ").slice(0, 3).join(" ") ?? "introuvable"}
           rows={[
-            ["ffmpeg", hardware.ffmpeg.path ?? "—"],
-            ["ffprobe", hardware.ffmpeg.ffprobe_path ?? "—"],
+            ["ffmpeg", hardware.ffmpeg.path ?? "-"],
+            ["ffprobe", hardware.ffmpeg.ffprobe_path ?? "-"],
           ]}
           mono
         />
@@ -234,7 +234,7 @@ export function HardwarePage() {
             {benchmark.data && (
               <Alert variant="success">
                 <AlertDescription>
-                  <strong>{benchmark.data.benchmark.fps} fps</strong> — vitesse{" "}
+                  <strong>{benchmark.data.benchmark.fps} fps</strong> - vitesse{" "}
                   {benchmark.data.benchmark.speed}×, mesuré en {benchmark.data.benchmark.elapsed_sec} s.
                   L'ETA est maintenant basée sur cette mesure.
                 </AlertDescription>

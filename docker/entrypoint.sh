@@ -60,7 +60,7 @@ disabled = false
 EOF
   chmod 600 "$CONFIG_FILE"
   echo "=============================================================="
-  echo "  🍊 Presse-Agrumes — première configuration"
+  echo "  🍊 Presse-Agrumes - première configuration"
   echo "=============================================================="
   echo "  Configuration : $CONFIG_FILE  (volume /data)"
   echo "  Racines autorisées : /media  /mnt  /srv  /volume1  /volume2"

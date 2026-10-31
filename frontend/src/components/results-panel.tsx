@@ -137,11 +137,11 @@ export function ResultsPanel({
     <Card className="glass-panel" id="results">
       <CardHeader className="gap-3 pb-4">
         <div className="flex flex-wrap items-start gap-3">
-          <StepBadge step={2} />
+          <StepBadge step={3} />
           <div className="min-w-0 flex-1">
             <CardTitle>Résultats de l'analyse</CardTitle>
             <p className="mt-1 truncate font-mono text-xs text-muted-foreground" title={scan.root}>
-              {scan.root} — {timeAgo(scan.created_at)}
+              {scan.root} - {timeAgo(scan.created_at)}
             </p>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onRescan}>
@@ -327,7 +327,7 @@ export function ResultsPanel({
           <details className="rounded-lg border border-destructive/25 bg-destructive/[0.04]">
             <summary className="cursor-pointer px-4 py-3 text-xs font-medium text-red-200">
               <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5" />
-              Fichiers / dossiers en erreur ({errors.length}) — ignorés automatiquement
+              Fichiers / dossiers en erreur ({errors.length}) - ignorés automatiquement
             </summary>
             <div className="max-h-64 space-y-2 overflow-auto px-4 pb-3">
               {errors.map((entry) => (
@@ -509,14 +509,14 @@ function ItemRow({
         <div>
           <p className="text-[9px] uppercase tracking-wider text-muted-foreground">Gain</p>
           <p className={cn("text-xs font-semibold tabular-nums", !disabled && "text-success")}>
-            {disabled ? "—" : formatBytes(gain.bytes)}
+            {disabled ? "-" : formatBytes(gain.bytes)}
           </p>
           {!disabled && <p className="text-[10px] text-muted-foreground">{formatPercent(gain.percent)}</p>}
         </div>
         <div>
           <p className="text-[9px] uppercase tracking-wider text-muted-foreground">ETA</p>
           <p className="flex items-center gap-1 text-xs font-semibold tabular-nums text-primary sm:justify-end">
-            <Clock3 className="h-3 w-3" /> {disabled ? "—" : formatEta(estimate.seconds)}
+            <Clock3 className="h-3 w-3" /> {disabled ? "-" : formatEta(estimate.seconds)}
           </p>
         </div>
       </div>
@@ -545,7 +545,7 @@ function EpisodesTable({ item, crf }: { item: ScanItem; crf: number }) {
   return (
     <details className="mt-2 rounded-md border border-border/50 bg-background/30">
       <summary className="cursor-pointer px-2.5 py-1.5 text-[10px] text-muted-foreground">
-        Détail des {episodes.length} fichier(s) du pack — non comparés individuellement
+        Détail des {episodes.length} fichier(s) du pack - non comparés individuellement
       </summary>
       <div className="overflow-x-auto px-2.5 pb-2">
         <table className="w-full text-[11px]">
@@ -566,7 +566,7 @@ function EpisodesTable({ item, crf }: { item: ScanItem; crf: number }) {
                   {episode.episode || episode.filename}
                 </td>
                 <td className="py-1 pr-2">{(episode.video_codec ?? "?").toUpperCase()}</td>
-                <td className="py-1 pr-2">{episode.resolution ?? "—"}</td>
+                <td className="py-1 pr-2">{episode.resolution ?? "-"}</td>
                 <td className="py-1 pr-2 text-right tabular-nums">{episode.duration_human}</td>
                 <td className="py-1 pr-2 text-right tabular-nums">{episode.size_human}</td>
                 <td className="py-1 text-right tabular-nums">

@@ -24,6 +24,7 @@ curl -u agrumes:motdepasse http://127.0.0.1:8473/api/health
 | GET | `/api/health` | Statut, version, chemins ffmpeg/ffprobe, auth, fuseau serveur. |
 | GET | `/api/config` | Presets qualité, défauts, racines autorisées, notes, fuseau. |
 | GET | `/api/mounts` | Racines pratiques (home, `/mnt`, `/media`, montages). |
+| GET | `/api/disk?path=/media` | Espace libre/total et pourcentage utilisé pour un dossier autorisé. |
 | POST | `/api/auth/password` | Change le mot de passe (`current_password`, `new_password`) et réécrit `config.toml`. |
 | GET | `/api/setup` | État de l'assistant : `needed`, dossier média mémorisé, racines autorisées. |
 | POST | `/api/setup` | Enregistre le dossier média choisi (`{"media_root": "/media/Films"}`) dans `data/settings.json`. |
@@ -34,6 +35,7 @@ curl -u agrumes:motdepasse http://127.0.0.1:8473/api/health
 | --- | --- | --- |
 | GET | `/api/browse?path=/mnt/media` | Liste les sous-dossiers, permissions, breadcrumbs. |
 | GET | `/api/browse?path=…&show_files=true` | Ajoute les fichiers vidéo. |
+| POST | `/api/browse/mkdir` | Crée un dossier (`{"parent": "/media", "name": "Films"}`). |
 
 Réponse (extrait) :
 
@@ -210,7 +212,7 @@ Les modes d'originaux : `keep`, `delete`, `move` (avec `trash_dir`).
 
 ## Compression
 
-`POST /api/compressions` — même corps que le préflight, plus `verify: true` et
+`POST /api/compressions` - même corps que le préflight, plus `verify: true` et
 `schedule` optionnel. Réponse : snapshot de job. Le job contient les items avec
 `status`, `percent`, `output_size`, `saved_bytes`, `error`, `warning`.
 

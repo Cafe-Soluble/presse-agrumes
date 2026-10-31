@@ -17,7 +17,7 @@
                 │
                 ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│ JobManager (jobs.py) — threads daemon                              │
+│ JobManager (jobs.py) - threads daemon                              │
 │  scan ──────────────► media.find_video_files + ffprobe             │
 │  préflight ─────────► series.resolve_item_files + paths.permissions│
 │  compression ───────► ffmpeg (SVT-AV1/libaom/VAAPI) + ffprobe      │
@@ -231,7 +231,7 @@ vérification.
 {
   "id": "pack:…",
   "kind": "series",
-  "name": "Breaking Bad — S01 (8 épisodes)",
+  "name": "Breaking Bad - S01 (8 épisodes)",
   "series_name": "Breaking Bad",
   "season_label": "S01",
   "episode_count": 8,

@@ -56,6 +56,7 @@ class OutputOptions(BaseModel):
     suffix: str = Field(default=".av1", max_length=64)
     output_dir: str | None = None
     overwrite: bool = False
+    clean_codec_names: bool = False
 
     @field_validator("suffix")
     @classmethod
@@ -139,6 +140,13 @@ class SetupRequest(BaseModel):
     """Dossier média choisi dans l'assistant de premier démarrage."""
 
     media_root: str = Field(min_length=1, max_length=4096)
+
+
+class CreateFolderRequest(BaseModel):
+    """Création d'un dossier depuis l'explorateur."""
+
+    parent: str = Field(min_length=1, max_length=4096)
+    name: str = Field(min_length=1, max_length=255)
 
 
 class PasswordChange(BaseModel):

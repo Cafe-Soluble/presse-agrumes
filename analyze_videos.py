@@ -435,7 +435,7 @@ def main():
 
     def handle_sigint(_signum, _frame):
         interrupted["flag"] = True
-        print("\nInterruption demandée (Ctrl+C) — sauvegarde des résultats "
+        print("\nInterruption demandée (Ctrl+C) - sauvegarde des résultats "
               "en cours, merci de patienter...", flush=True)
 
     signal.signal(signal.SIGINT, handle_sigint)

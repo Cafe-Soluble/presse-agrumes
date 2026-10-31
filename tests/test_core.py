@@ -190,3 +190,11 @@ def test_adjusted_gain_follows_crf():
     high_crf = media.adjusted_gain_for_crf(base, 1_000_000, 34)
     assert low_crf[0] < reference[0] < high_crf[0]
     assert low_crf[2] > reference[2] > high_crf[2]
+
+
+def test_strip_codec_tokens():
+    assert media.strip_codec_tokens("Film.2024.1080p.x265-GROUP") == "Film.2024.1080p-GROUP"
+    assert media.strip_codec_tokens("Movie.H264.1080p") == "Movie.1080p"
+    assert media.strip_codec_tokens("Serie.X264.1080p") == "Serie.1080p"
+    assert media.strip_codec_tokens("Film.HEVC-GROUP") == "Film-GROUP"
+    assert media.strip_codec_tokens("Sans codec") == "Sans codec"

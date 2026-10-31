@@ -8,7 +8,7 @@
 > Ce journal est la mémoire du projet. **Ajoutez une entrée datée après chaque
 > intervention notable** : fichiers touchés, décisions, tests, points ouverts.
 
-## 2026-10-30 — Audit du script initial et cadrage
+## 2026-10-30 - Audit du script initial et cadrage
 
 - Lu `analyze_videos.py` (script CLI historique, 494 lignes) : scan récursif,
   ffprobe, estimation prudente, reprise, checkpoints. Conservé à la racine
@@ -22,7 +22,7 @@
   BtbN dans `~/.local/opt` + liens `~/.local/bin`. Node disponible.
 - Plan consigné dans la conversation et repris dans `README.md` / `AGENTS.md`.
 
-## 2026-10-30 — Backend : moteur média, séries, matériel, jobs
+## 2026-10-30 - Backend : moteur média, séries, matériel, jobs
 
 - Création `presse_agrumes/` :
   - `config.py` (env `PA_*`, recherche ffmpeg/ffprobe, dossiers data) ;
@@ -39,7 +39,7 @@
 - Test manuel API : scan de `MEDIAS/`, 18 fichiers, pack Adolescence regroupé,
   erreur sur fichier vide correctement signalée.
 
-## 2026-10-30 — Première interface (vanilla) puis décision de migration
+## 2026-10-30 - Première interface (vanilla) puis décision de migration
 
 - Une première interface HTML/CSS/JS sans dépendance a été construite et
   testée : analyse, résultats, compression, test qualité, benchmark, navigateur
@@ -49,7 +49,7 @@
   Query. L'interface vanilla a été **remplacée** (dossier `web/` supprimé).
 - Le backend n'a pas changé de contrat ; l'API reste la même.
 
-## 2026-10-30 — Migration React/Vite/shadcn
+## 2026-10-30 - Migration React/Vite/shadcn
 
 - Création `frontend/` : Vite 6, React 19, TS strict, Tailwind 3.4, Radix UI
   (composants shadcn/ui), React Router 7, TanStack Query 5, Lucide.
@@ -62,7 +62,7 @@
   `frontend/dist` est versionné pour un démarrage sans Node.
 - Build : `tsc --noEmit && vite build`, 1762 modules, ~606 Ko JS minifié.
 
-## 2026-10-30 — Validation headless et corrections
+## 2026-10-30 - Validation headless et corrections
 
 - Installation de Playwright + Chromium headless. La VM n'ayant ni polices ni
   bibliothèques X/glib, installation locale sans root : `.deb` extraits dans
@@ -74,7 +74,7 @@
   et absence d'erreurs console.
 - Bugs corrigés pendant cette phase :
   - compteur `already_av1_count` faussé par `None == None` ;
-  - nom de pack `SERIES — S01` au lieu de `Adolescence — S01` ;
+  - nom de pack `SERIES - S01` au lieu de `Adolescence - S01` ;
   - benchmark SVT renvoyant `fps=0.00` → repli sur `speed × 30` ;
   - comparaison de test qualité basée sur des durées différentes → comparaison
     de débit ;
@@ -83,7 +83,7 @@
   - `nice 10` sur les processus ffmpeg de compression ;
   - fallback SPA et asset hash après rebuild.
 
-## 2026-10-30 — Tests backend et cas limites
+## 2026-10-30 - Tests backend et cas limites
 
 - `tests/conftest.py` : environnement temporaire, `PA_ALLOWED_ROOTS`,
   génération de vidéos H.264 réelles, helpers scan/wait/probe.
@@ -99,7 +99,7 @@
   erreur 400 explicite, fichier 000 → erreur de scan.
 - Test Playwright : `1 passed` (`frontend/e2e/smoke.spec.ts`).
 
-## 2026-10-30 — Documentation, scripts et git
+## 2026-10-30 - Documentation, scripts et git
 
 - README public complet (fonctionnalités, installation NAS, systemd, config,
   guide, sécurité, API, dépannage, roadmap).
@@ -111,7 +111,7 @@
   `deploy/presse-agrumes.env.example`.
 - Nettoyage des scripts UI ad hoc ; ajout du test Playwright réutilisable.
 
-## 2026-10-30 — Clôture, vérifications et commits
+## 2026-10-30 - Clôture, vérifications et commits
 
 - Vérifications finales :
   - `pytest` : **22 tests passés** (scan, préflight, compression, permissions,
@@ -133,7 +133,7 @@
   matériel).
 
 
-## 2026-10-30 — v0.2.0 : auth, ports, pause, planification, bannière active
+## 2026-10-30 - v0.2.0 : auth, ports, pause, planification, bannière active
 
 - **Authentification par défaut** : `config.py` génère `secrets.token_hex(8)` si
   `PA_AUTH_PASSWORD` est absent ; `__main__.py` affiche utilisateur, mot de passe,
@@ -167,7 +167,7 @@
   port 8081, `--reload` avec mot de passe partagé.
 - **Reste** : commit + tag `v0.2.0` + push (fait après cette entrée).
 
-## 2026-10-30 — v0.3.0 : config.toml, suppression directe, limites, ETA
+## 2026-10-30 - v0.3.0 : config.toml, suppression directe, limites, ETA
 
 - **Mot de passe en fichier** : `config.py` charge `config.toml` (TOML via
   `tomllib`/`tomli`), avec sections `[server]`, `[paths]`, `[auth]`, `[ffmpeg]`.
@@ -192,7 +192,7 @@
   avec calibration ETA. Login avec mot de passe `config.toml` validé.
 - **Reste** : commit + tag `v0.3.0` + push (fait après cette entrée).
 
-## 2026-10-30 — v0.4.0 : configuration uniquement par config.toml
+## 2026-10-30 - v0.4.0 : configuration uniquement par config.toml
 
 - **Suppression de toutes les variables d'environnement** de l'application
   (`PA_*`, `FFMPEG_BIN`, `FFPROBE_BIN`). `config.py` ne lit plus que le fichier
@@ -214,7 +214,7 @@
   `config.toml`, suppression directe, limites, Suivi et calibration ETA.
 - **Reste** : commit + tag `v0.4.0` + push (fait après cette entrée).
 
-## 2026-10-30 — v0.5.0 : distribution Docker / GHCR
+## 2026-10-30 - v0.5.0 : distribution Docker / GHCR
 
 - **Décision de distribution** : GHCR comme canal principal (intégration GitHub,
   pas de limite de pull Docker Hub, packages publics, multi-arch), Docker Hub
@@ -241,7 +241,7 @@
 - **Reste** : commit + tag `v0.5.0`, push ; déclencher la CI et rendre le
   package GHCR public ; valider `docker compose` sur un vrai NAS.
 
-## 2026-10-30 — v0.6.0 : installation Docker en une commande
+## 2026-10-30 - v0.6.0 : installation Docker en une commande
 
 - **Problème utilisateur** : l'installation Docker demandait git/curl/config/
   Compose. Objectif : une seule commande et un mot de passe affiché.
@@ -263,7 +263,7 @@
 - **Reste** : commit + tag `v0.6.0` + push, surveiller le job smoke, puis
   éventuel miroir Docker Hub.
 
-## 2026-10-31 — v0.6.0 validé, miroir Docker Hub optionnel
+## 2026-10-31 - v0.6.0 validé, miroir Docker Hub optionnel
 
 - **CI v0.6.0** : jobs `test`, `docker` (buildx amd64/arm64) et `smoke`
   (build + démarrage + `/healthz` + `/data/config.toml`) tous verts.
@@ -279,7 +279,7 @@
 - **Reste** : créer le compte Docker Hub `cafesoluble`, ajouter les deux secrets,
   puis pousser un tag (`v0.6.1` ou `v0.7.0`) pour publier les tags de version.
 
-## 2026-10-31 — v0.7.0 : assistant de premier démarrage
+## 2026-10-31 - v0.7.0 : assistant de premier démarrage
 
 - **Contexte** : un chantier non commité ajoutait `/api/setup` et
   `setup-dialog.tsx` mais ne rendait pas le dialogue ; `tsc` et le smoke
@@ -294,7 +294,7 @@
 - **Tests** : 37 pytest, typecheck, build, Playwright OK.
 - **Release** : v0.7.0, image multi-arch GHCR (`0.7.0`, `0.7`, `latest`).
 
-## 2026-10-31 — v0.7.1 : port par défaut 8473
+## 2026-10-31 - v0.7.1 : port par défaut 8473
 
 - **Demande** : 8080 est trop souvent occupé ; choisir un port par défaut moins
   courant.
@@ -307,7 +307,7 @@
   `config.toml` ; aucune action pour elles.
 - **Tests** : pytest, typecheck, build, Playwright OK.
 
-## 2026-10-31 — v0.7.2 : installation Compose simplifiée
+## 2026-10-31 - v0.7.2 : installation Compose simplifiée
 
 - **Décision** : un seul chemin recommandé (Compose), `docker run` en annexe.
   Le Compose est téléchargé depuis la release et contient 3 valeurs à adapter
@@ -322,7 +322,7 @@
   `docker-compose.yml` aux releases des tags `v*`.
 - **Tests** : pytest, typecheck, build, Playwright, YAML Compose/workflow.
 
-## 2026-10-31 — v0.7.3 : diagnostic permissions et montage média
+## 2026-10-31 - v0.7.3 : diagnostic permissions et montage média
 
 - **Problème réel sur NAS** : `./data` créé par root alors que le conteneur
   tourne en UID 1000 → arrêt immédiat, aucune ligne « première configuration »,
@@ -338,7 +338,7 @@
 - **Tests** : entrypoint simulé (succès et échec de permissions), pytest,
   typecheck, build, Playwright.
 
-## 2026-10-31 — v0.8.0 : mot de passe, annulation, assistant clarifié
+## 2026-10-31 - v0.8.0 : mot de passe, annulation, assistant clarifié
 
 - **Changement de mot de passe** : `config.update_password` réécrit uniquement la
   ligne `[auth] password` (commentaires conservés, mode 600), met à jour l'état
@@ -354,7 +354,7 @@
 - **Tests** : `test_update_password_preserves_other_settings`,
   `test_change_password_endpoint`, pytest 39, typecheck, build, Playwright.
 
-## 2026-10-31 — v0.8.1 : gain potentiel ajusté au CRF
+## 2026-10-31 - v0.8.1 : gain potentiel ajusté au CRF
 
 - **Bug** : le gain des fichiers venait du scan (`estimate_gain`, indépendant du
   CRF) et ne changeait donc jamais entre Archivage et Rapide.
@@ -366,7 +366,7 @@
   `test_preflight_output_depends_on_crf` (CRF 24 > CRF 34 en taille estimée).
 - **Release** : v0.8.1.
 
-## 2026-10-31 — v0.8.2 : analyse active conservée
+## 2026-10-31 - v0.8.2 : analyse active conservée
 
 - **Bug** : `activeScanId` venait uniquement de `?scan=` ; la navigation vers
   `/hardware` ou `/history` (NavLink vers `/`) perdait le paramètre, donc
@@ -376,3 +376,22 @@
   efface la référence. En cas d'analyse supprimée, bouton « Fermer ».
 - **Tests** : typecheck, build, Playwright.
 - **Release** : v0.8.2.
+
+## 2026-10-31 - v0.9.0 : espace disque, historique, dossiers, noms
+
+- **Création de dossier** : `POST /api/browse/mkdir`, bouton dans l'explorateur,
+  validation (nom, permissions, existence, racines autorisées).
+- **Espace disque** : `GET /api/disk`, espace libre toujours visible dans les
+  réglages, `space_ok` et espace libre minimal dans le préflight, blocage du
+  lancement et alerte si une partie des fichiers est ignorée.
+- **Historique des compressions** : section sur la page Historique à partir de
+  `/api/jobs`, gain réel et échecs.
+- **Noms de sortie** : `OutputOptions.clean_codec_names`, sanitizer
+  `media.strip_codec_tokens` (x264, x265, H264, HEVC, AV1...).
+- **Ordre** : réglages avant résultats ; badges d'étape 2 et 3 inversés.
+- **Extraits de test** : téléchargement de l'aperçu, tailles explicites,
+  explication de la différence aperçu H.264/AAC vs copie brute MKV.
+- **Typographie** : remplacement de tous les tirets cadratins par des traits
+  d'union et règle dans AGENTS.md.
+- **Tests** : mkdir, disk, strip_codec, space_ok ; 44 pytest, typecheck, build,
+  Playwright.

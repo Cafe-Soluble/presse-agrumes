@@ -361,6 +361,7 @@ export interface OutputOptions {
   suffix: string;
   output_dir: string | null;
   overwrite: boolean;
+  clean_codec_names?: boolean;
 }
 
 export interface OriginalOptions {
@@ -422,6 +423,8 @@ export interface PreflightResult {
   total_estimated_output_human: string;
   free_space_bytes: number;
   free_space_human: string;
+  free_space_path?: string;
+  space_ok?: boolean;
   sample_destinations: { source: string; destination: string }[];
 }
 

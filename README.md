@@ -1,6 +1,6 @@
 # 🍊 Presse-Agrumes
 
-**Analysez votre bibliothèque vidéo, testez la qualité, puis compressez en AV1 — sans quitter votre navigateur.**
+**Analysez votre bibliothèque vidéo, testez la qualité, puis compressez en AV1 - sans quitter votre navigateur.**
 
 Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveurs domestiques. Il parcourt un dossier, détecte les vidéos qui valent le coup d'être réencodées en AV1, regroupe les séries par saison, estime le temps sur votre matériel et permet de vérifier le résultat sur un extrait avant de toucher au moindre fichier.
 
@@ -33,7 +33,7 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 - **Scan de ports au lancement** : si 8473 est occupé, l'application trouve automatiquement le port libre suivant et affiche l'URL réelle.
 - **Détection des bons candidats** : codec, bitrate, résolution, durée, HDR, 10 bits, bits par pixel, gain estimé de façon volontairement pessimiste.
 - **Séries regroupées** : un dossier marqué « séries » devient une seule ligne par saison (ou par série), avec le détail des épisodes à la demande. Aucune heuristique imposée : c'est vous qui indiquez les dossiers de séries.
-- **Tri, recherche, filtres et sélection** par fichier ou par pack complet — en cliquant sur la ligne entière ou sur la case à cocher.
+- **Tri, recherche, filtres et sélection** par fichier ou par pack complet - en cliquant sur la ligne entière ou sur la case à cocher.
 - **Réglages AV1** : SVT-AV1 / libaom / VAAPI, preset, CRF, 8 ou 10 bits, audio copié ou réencodé, MKV/MP4/WebM, sous-titres.
 - **Gestion des originaux** : conserver, supprimer après vérification ffprobe, ou déplacer vers une corbeille en conservant l'arborescence.
 - **Destination des fichiers compressés** : même dossier avec suffixe, remplacement sur place, ou dossier personnalisé avec miroir de l'arborescence.
@@ -41,6 +41,10 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 - **Planification horaire** : choisissez des plages (jours + heures) ; hors plage, le job se met en pause et reprend automatiquement.
 - **Bannière de tâche active** en haut de toutes les pages : progression, ETA, vitesse, pause/reprise et accès au suivi, même après fermeture du navigateur.
 - **Estimation matérielle** : détection CPU/RAM/GPU, benchmark ffmpeg réel, ETA selon le pourcentage de ressources alloué et le nombre d'encodages simultanés.
+- **Espace disque** : espace libre visible, contrôle avant lancement, blocage si la sortie estimée ne tient pas.
+- **Historique des compressions** : jobs terminés, annulés ou en erreur, avec gain réel.
+- **Création de dossiers** : directement dans l'explorateur (corbeille, sortie, séries).
+- **Noms de fichiers** : option pour retirer x264, x265, H264, HEVC, AV1 des noms de sortie.
 - **Test qualité** : extrait de 20 s (configurable), encodage AV1 et comparaison côte à côte dans le navigateur, avec téléchargement de l'original brut.
 - **Gestion des erreurs explicite** : fichier vide, fichier corrompu, permissions, format inconnu et dossiers illisibles sont classés et ignorés sans bloquer le scan.
 - **Garde-fous** : jamais de recompression d'un fichier déjà AV1, sortie écrite dans un fichier temporaire puis renommée atomiquement, original supprimé seulement après validation de la sortie.
@@ -152,7 +156,7 @@ Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en `amd64` et
 `config.toml` est créé automatiquement au premier démarrage : il n'y a pas de
 `.env`.
 
-#### Étape 1 — Télécharger le fichier Compose
+#### Étape 1 - Télécharger le fichier Compose
 
 ```bash
 mkdir -p presse-agrumes/data
@@ -164,7 +168,7 @@ curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/downl
 Le fichier est joint à chaque release : il correspond exactement à la version
 de l'image publiée. Tu peux aussi le télécharger depuis ton navigateur.
 
-#### Étape 2 — Renseigner les 3 valeurs
+#### Étape 2 - Renseigner les 3 valeurs
 
 Ouvre `docker-compose.yml`. Seules les lignes marquées **« À ADAPTER »**
 doivent changer :
@@ -189,7 +193,7 @@ Le dossier `./data` doit appartenir à l'UID/GID de `user:` :
 sudo chown -R 1000:1000 data    # remplace par les valeurs de user:
 ```
 
-#### Étape 3 — Démarrer
+#### Étape 3 - Démarrer
 
 ```bash
 docker compose up -d
@@ -213,7 +217,7 @@ Le mot de passe n'est affiché qu'une fois. Il est aussi lisible dans
 > `unknown shorthand flag: 'd' in -d`, installe Docker Engine depuis le dépôt
 > officiel de ta distribution.
 
-#### Étape 4 — Se connecter
+#### Étape 4 - Se connecter
 
 Ouvre `http://<ip-du-nas>:8473` avec `agrumes` et le mot de passe affiché.
 
@@ -255,7 +259,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.8.2
+  ghcr.io/cafe-soluble/presse-agrumes:0.9.0
 
 docker logs presse-agrumes --tail=50
 ```
@@ -353,7 +357,7 @@ Le fichier peut être monté en lecture seule dans un conteneur. Le port, les ch
 - **Dossier à analyser** : racine du scan. Tous les sous-dossiers sont parcourus, sauf `proc`, `sys`, `dev`, `run` et les motifs exclus.
 - **Options d'analyse** : taille minimale, threads ffprobe (2 sur disque mécanique, 4–6 sur SSD), motifs d'exclusion (`@eaDir`, `#recycle`, `*.tmp`…), affichage des fichiers déjà AV1.
 - **Dossiers de séries** : marquez les dossiers qui *contiennent* des séries. Chaque dossier de saison devient une ligne unique :
-  - `Breaking Bad/S01/E01.mkv` → pack « Breaking Bad — S01 » ;
+  - `Breaking Bad/S01/E01.mkv` → pack « Breaking Bad - S01 » ;
   - `Breaking Bad/E01.mkv` → pack du dossier « Breaking Bad » ;
   - les épisodes ne sont **pas** comparés individuellement dans la liste, mais leur détail est accessible via « Détail des … fichiers ».
 - L'analyse est en lecture seule. Le bouton **Annuler** interrompt proprement le scan.
@@ -565,7 +569,8 @@ démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 `v0.7.3` (diagnostic permissions et choix du montage média), `v0.8.0`
 (changement de mot de passe, annulation des analyses, guide Compose pas-à-pas),
 `v0.8.1` (gain ajusté au CRF choisi), `v0.8.2` (analyse active conservée
-entre les vues).
+entre les vues), `v0.9.0` (espace disque, historique des compressions,
+création de dossiers, nettoyage des noms de codecs).
 
 ## Dépannage
 
@@ -680,6 +685,6 @@ ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default
 
 ## Licence
 
-MIT — voir [`LICENSE`](LICENSE).
+MIT - voir [`LICENSE`](LICENSE).
 
 Le script historique [`analyze_videos.py`](analyze_videos.py) est conservé comme référence de la première version CLI ; l'application utilise désormais le moteur `presse_agrumes/media.py`.

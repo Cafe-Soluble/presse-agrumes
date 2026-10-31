@@ -65,10 +65,10 @@ la configuration de production.
 ## Lancer en développement
 
 ```bash
-# Terminal 1 — backend avec reload (port/host lus dans config.toml)
+# Terminal 1 - backend avec reload (port/host lus dans config.toml)
 .venv/bin/python -m presse_agrumes --reload
 
-# Terminal 2 — Vite (proxy /api vers 8473)
+# Terminal 2 - Vite (proxy /api vers 8473)
 cd frontend
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
@@ -99,7 +99,7 @@ logs. Le volume `/data` contient aussi les scans/jobs.
 ```bash
 docker run -d --name presse-agrumes -p 8473:8473 \
   -v /mnt/media:/media -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.8.2
+  ghcr.io/cafe-soluble/presse-agrumes:0.9.0
 docker logs presse-agrumes
 ```
 

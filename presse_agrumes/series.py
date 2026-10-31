@@ -102,7 +102,7 @@ def _episode_info(entry: dict) -> dict:
         "size_bytes": entry.get("size_bytes", 0),
         "size_human": entry.get("size_human", human_size(entry.get("size_bytes"))),
         "duration_sec": entry.get("duration_sec", 0),
-        "duration_human": entry.get("duration_human", "—"),
+        "duration_human": entry.get("duration_human", "-"),
         "video_codec": entry.get("video_codec"),
         "resolution": entry.get("resolution"),
         "estimated_gain_bytes": entry.get("estimated_gain_bytes", 0),
@@ -164,11 +164,11 @@ def _make_pack(directory: Path, marker: Path, entries: list[dict], root: Path) -
         series_name = marker_series
 
     if season:
-        display_name = f"{series_name} — {season}"
+        display_name = f"{series_name} - {season}"
     elif series_name == folder_name:
         display_name = folder_name
     else:
-        display_name = f"{series_name} — {folder_name}"
+        display_name = f"{series_name} - {folder_name}"
     if len(entries) > 1:
         display_name += f" ({len(entries)} épisodes)"
     else:

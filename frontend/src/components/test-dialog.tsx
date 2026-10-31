@@ -120,7 +120,7 @@ export function TestDialog({ open, onOpenChange, item, settings, hardware }: Tes
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5 text-primary" />
-            Test qualité — {isSeries ? "pack de série" : "fichier"}
+            Test qualité - {isSeries ? "pack de série" : "fichier"}
           </DialogTitle>
           <DialogDescription className="break-all">{item?.name}</DialogDescription>
         </DialogHeader>
@@ -139,7 +139,7 @@ export function TestDialog({ open, onOpenChange, item, settings, hardware }: Tes
                   <SelectContent>
                     {episodes.map((episode) => (
                       <SelectItem key={episode.path} value={episode.path}>
-                        {episode.episode || episode.filename} — {episode.size_human} ({episode.video_codec ?? "?"})
+                        {episode.episode || episode.filename} - {episode.size_human} ({episode.video_codec ?? "?"})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -301,16 +301,23 @@ export function TestDialog({ open, onOpenChange, item, settings, hardware }: Tes
               </p>
             </div>
 
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              L'aperçu « Original » est réencodé en H.264/AAC 160k pour la lecture navigateur :
+              sa taille et son audio diffèrent de la copie brute MKV, qui conserve le flux
+              d'origine. Télécharge l'aperçu (bouton ci-dessus) pour comparer exactement ce que tu
+              entends dans le navigateur.
+            </p>
+
             {meta.files.original_raw && meta.files.compressed && (
               <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline" size="sm">
                   <a href={testFileUrl(meta.id, meta.files.original_raw.filename, true)} download>
-                    <Download className="h-4 w-4" /> Extrait original brut (MKV)
+                    <Download className="h-4 w-4" /> Copie brute MKV ({meta.files.original_raw.size_human})
                   </a>
                 </Button>
                 <Button asChild variant="outline" size="sm">
                   <a href={testFileUrl(meta.id, meta.files.compressed.filename, true)} download>
-                    <Download className="h-4 w-4" /> Extrait AV1 (MP4)
+                    <Download className="h-4 w-4" /> Extrait AV1 MP4 ({meta.files.compressed.size_human})
                   </a>
                 </Button>
               </div>
@@ -355,9 +362,16 @@ function ComparePane({
           <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
         </div>
         {file && (
-          <Badge variant={accent === "primary" ? "success" : "secondary"} className="shrink-0">
-            {file.size_human}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge variant={accent === "primary" ? "success" : "secondary"}>
+              {file.size_human}
+            </Badge>
+            <Button asChild variant="ghost" size="icon" title="Télécharger ce fichier">
+              <a href={testFileUrl(testId, file.filename, true)} download aria-label="Télécharger ce fichier">
+                <Download className="h-4 w-4" />
+              </a>
+            </Button>
+          </div>
         )}
       </div>
       {file ? (

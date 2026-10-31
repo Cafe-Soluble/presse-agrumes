@@ -1,4 +1,4 @@
-# AGENTS.md — guide pour les agents de développement
+# AGENTS.md - guide pour les agents de développement
 
 > **À lire avant toute modification.** Ce fichier décrit l'architecture réelle,
 > les conventions et les pièges du projet Presse-Agrumes. Après chaque
@@ -226,6 +226,9 @@ changement de sélection/réglages. Il ne crée que des dossiers de sortie.
     couche du conteneur.
 17. **Multi-arch** : toute nouvelle dépendance système doit exister en amd64 et
     arm64 (ffmpeg, tini). Vérifier le buildx avant release.
+18. **Typographie** : ne jamais utiliser le tiret cadratin (U+2014, le caractère
+    long). Utiliser un trait d'union, une virgule, deux-points ou des parenthèses.
+    Cette règle s'applique au code, aux chaînes affichées et à la documentation.
 
 ## Ajouter une fonctionnalité
 
@@ -271,7 +274,7 @@ locale sans root.
 - **`series.build_items`** : un pack = le dossier parent immédiat des vidéos
   sous un marqueur de séries. Ne pas revenir à une comparaison épisode par
   épisode dans la liste principale.
-- **Nom de série** : `Adolescence.S01.MULTI…` → `Adolescence — S01`. La logique
+- **Nom de série** : `Adolescence.S01.MULTI…` → `Adolescence - S01`. La logique
   `_series_base` retire le marqueur de saison et les séparateurs.
 - **ETA** : le benchmark est mesuré sur tous les threads. Le pourcentage alloué
   et la concurrence réduisent linéairement les fps ; c'est une approximation
@@ -315,7 +318,7 @@ locale sans root.
 Chaque intervention doit ajouter une entrée dans `docs/JOURNAL.md` :
 
 ```markdown
-## 2026-10-30 — Titre court
+## 2026-10-30 - Titre court
 - Fichiers modifiés : …
 - Décision / raison : …
 - Tests : …

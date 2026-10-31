@@ -76,7 +76,7 @@ def _print_banner(port: int, requested_port: int, host: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Presse-Agrumes — serveur web")
+    parser = argparse.ArgumentParser(description="Presse-Agrumes - serveur web")
     parser.add_argument(
         "--config",
         default=None,

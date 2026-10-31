@@ -45,6 +45,15 @@ export const api = {
   hardware: (refresh = false) =>
     request<Hardware>(`/api/hardware${refresh ? "?refresh=true" : ""}`),
   mounts: () => request<{ roots: MountRoot[]; home: string }>("/api/mounts"),
+  disk: (path: string) =>
+    request<{
+      path: string;
+      free_bytes: number;
+      free_human: string;
+      total_bytes: number;
+      total_human: string;
+      used_percent: number;
+    }>(`/api/disk?path=${encodeURIComponent(path)}`),
   setup: () => request<import("./types").SetupState>("/api/setup"),
   saveSetup: (mediaRoot: string) =>
     request<{ configured: boolean; media_root: string; writable: boolean }>("/api/setup", {
@@ -58,6 +67,11 @@ export const api = {
     }),
   browse: (path: string) =>
     request<BrowseData>(`/api/browse?path=${encodeURIComponent(path)}`),
+  createFolder: (parent: string, name: string) =>
+    request<{ path: string }>("/api/browse/mkdir", {
+      method: "POST",
+      body: JSON.stringify({ parent, name }),
+    }),
   startScan: (root: string, options: ScanOptions) =>
     request<JobSnapshot>("/api/scans", {
       method: "POST",
@@ -104,6 +118,8 @@ export const api = {
     request<{ resumed: boolean }>(`/api/jobs/${jobId}/resume`, { method: "POST" }),
   cancelJob: (jobId: string) =>
     request<{ cancelled: boolean }>(`/api/jobs/${jobId}/cancel`, { method: "POST" }),
+  jobs: (limit = 50) =>
+    request<{ jobs: import("./types").JobSnapshot[] }>(`/api/jobs?limit=${limit}`),
   listJobs: (limit = 30) => request<{ jobs: JobSnapshot[] }>(`/api/jobs?limit=${limit}`),
   benchmark: (payload: { encoder: string; preset: number; force?: boolean }) =>
     request<{ benchmark: Benchmark; hardware: Hardware }>("/api/hardware/benchmark", {

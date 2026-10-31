@@ -1,5 +1,5 @@
 [Unit]
-Description=Presse-Agrumes — analyse et compression AV1
+Description=Presse-Agrumes - analyse et compression AV1
 After=network-online.target
 Wants=network-online.target
 

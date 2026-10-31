@@ -92,3 +92,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.8.0` | 2026-10-31 | Changement de mot de passe dans l'interface, annulation des analyses depuis la bannière, assistant/explorateur sans racine `/`, guide d'installation Compose pas-à-pas. |
 | `v0.8.1` | 2026-10-31 | Gain potentiel ajusté au CRF choisi (résultats, résumé, préflight, sortie estimée) au lieu d'une valeur fixe. |
 | `v0.8.2` | 2026-10-31 | L'analyse active reste affichée après navigation vers Matériel/Historique ; bouton Fermer si elle n'existe plus. |
+| `v0.9.0` | 2026-10-31 | Création de dossiers, espace disque et faisabilité avant compression, historique des compressions, nettoyage des codecs dans les noms, téléchargements de test clarifiés. |

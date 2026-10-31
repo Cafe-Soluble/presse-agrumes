@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # =============================================================================
-# Presse-Agrumes — image Docker
+# Presse-Agrumes - image Docker
 # =============================================================================
 # Multi-stage : Node compile l'interface React, Python exécute le backend.
 # L'image finale ne contient ni Node ni les sources frontend inutiles.
@@ -28,7 +28,7 @@ RUN npm run build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 
-ARG APP_VERSION=0.8.2
+ARG APP_VERSION=0.9.0
 LABEL org.opencontainers.image.title="Presse-Agrumes" \
       org.opencontainers.image.description="Analyse et compression AV1 de bibliothèques vidéo" \
       org.opencontainers.image.source="https://github.com/Cafe-Soluble/presse-agrumes" \
