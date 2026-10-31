@@ -421,3 +421,12 @@
   intel-media-va-driver-non-free, repli i965-va-driver.
 - **Docs** : procédure VAAPI complète (host, Compose, vérification, diagnostic).
 - **Release** : v0.10.1, image reconstruite.
+
+## 2026-10-31 - v0.10.2 : GID numériques VAAPI
+
+- **Erreur réelle** : `Unable to find group render` au démarrage, car Docker
+  résout les noms de groupes dans l'image, pas sur l'hôte.
+- **Correction** : Compose et docs utilisent les GID numériques, avec
+  `getent group video` et `stat -c '%g' /dev/dri/renderD128`.
+- **Docs** : messages XDG/X server de vainfo expliqués comme normaux en
+  headless.

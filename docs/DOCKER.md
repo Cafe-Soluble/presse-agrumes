@@ -4,7 +4,7 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.10.1
+ghcr.io/cafe-soluble/presse-agrumes:0.10.2
 ghcr.io/cafe-soluble/presse-agrumes:0.7
 ```
 
@@ -112,7 +112,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.10.1
+  ghcr.io/cafe-soluble/presse-agrumes:0.10.2
 
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
@@ -127,7 +127,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.10.1
+cafesoluble/presse-agrumes:0.10.2
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -147,7 +147,7 @@ Après leur ajout, pousse un nouveau tag (`v0.7.2`, `v0.8.0`…) pour publier le
 tags de version, puis :
 
 ```bash
-docker pull cafesoluble/presse-agrumes:0.10.1
+docker pull cafesoluble/presse-agrumes:0.10.2
 ```
 
 Les tags publiés sont `<version>`, `<major>.<minor>`, la branche, le SHA court
@@ -298,32 +298,29 @@ explicitement. C'est pour cela que le diagnostic peut afficher
 ls -l /dev/dri
 # attendu : card0 et renderD128
 id
-getent group video render
+getent group video
+stat -c '%g %n' /dev/dri/renderD128
 ```
 
 ### 2. Autoriser le conteneur
 
-Dans `docker-compose.yml` :
+Utilise des **GID numériques**. Les noms `video` et `render` ne sont pas
+forcément présents dans `/etc/group` de l'image, et Docker échoue alors avec
+`Unable to find group render`.
+
+```bash
+getent group video          # exemple : video:x:44:
+stat -c '%g' /dev/dri/renderD128   # exemple : 105
+```
+
+Dans `docker-compose.yml`, remplace les valeurs par les tiennes :
 
 ```yaml
     devices:
       - /dev/dri:/dev/dri
     group_add:
-      - video
-      - render
-```
-
-Si les noms de groupes ne fonctionnent pas, utilise les GID numériques :
-
-```bash
-getent group video render
-# exemple : video:x:44:  render:x:109:
-```
-
-```yaml
-    group_add:
-      - "44"
-      - "109"
+      - "44"     # GID de video
+      - "105"    # GID de renderD128
 ```
 
 Puis recrée le conteneur (un simple restart ne suffit pas) :
@@ -342,6 +339,10 @@ docker exec presse-agrumes vainfo
 Depuis la version 0.10.1, l'image contient `vainfo`, les pilotes Mesa et, en
 amd64, le pilote Intel non-free (avec repli sur i965). Sans pilote userspace,
 `/dev/dri` seul ne suffit pas.
+
+Les messages `XDG_RUNTIME_DIR is invalid` et `can't connect to X server` sont
+normaux en headless : `vainfo` bascule sur DRM et affiche ensuite le driver et
+les profils.
 
 ### 4. Lire le diagnostic
 
@@ -374,7 +375,7 @@ suivant évite un décalage UTC :
 Le Compose de la release épingle une version précise :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.10.1
+image: ghcr.io/cafe-soluble/presse-agrumes:0.10.2
 ```
 
 Pour monter de version, remplace ce numéro par celui de la nouvelle release

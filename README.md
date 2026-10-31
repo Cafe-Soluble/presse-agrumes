@@ -227,7 +227,10 @@ Ouvre `http://<ip-du-nas>:8473` avec `agrumes` et le mot de passe affiché.
 - L'assistant propose de choisir le dossier média (ou « Plus tard »).
 - Le bouton **clé** dans l'en-tête permet de changer le mot de passe ; il est
   écrit dans `./data/config.toml` et prend effet immédiatement.
-- VAAPI : décommente `devices` / `group_add` dans le Compose.
+- VAAPI : ajoute `devices: /dev/dri` et les GID **numériques** dans
+  `group_add` (`stat -c '%g' /dev/dri/renderD128` pour l'encodage, `getent group
+  video` pour le décodage). Vérifie avec `docker exec presse-agrumes vainfo`.
+  Procédure détaillée dans [`docs/DOCKER.md`](docs/DOCKER.md#vaapi--gpu).
 - Fuseau horaire : `/etc/localtime` est déjà monté.
 
 #### Mettre à jour
@@ -262,7 +265,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.10.1
+  ghcr.io/cafe-soluble/presse-agrumes:0.10.2
 
 docker logs presse-agrumes --tail=50
 ```
@@ -575,7 +578,7 @@ démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 entre les vues), `v0.9.0` (espace disque, historique des compressions,
 création de dossiers, nettoyage des noms de codecs), `v0.10.0` (H.265,
 benchmark sur fichier réel, diagnostic VAAPI), `v0.10.1` (pilotes VAAPI dans
-l'image Docker).
+l'image Docker), `v0.10.2` (GID numériques pour VAAPI).
 
 ## Dépannage
 

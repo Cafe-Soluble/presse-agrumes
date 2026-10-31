@@ -24,7 +24,7 @@
 # =============================================================================
 services:
   presse-agrumes:
-    image: ghcr.io/cafe-soluble/presse-agrumes:0.10.1
+    image: ghcr.io/cafe-soluble/presse-agrumes:0.10.2
     container_name: presse-agrumes
 
     # À ADAPTER - UID:GID qui possède ./data et les médias.
@@ -67,12 +67,21 @@ services:
       # Optionnel - fuseau horaire du NAS (planification aux heures locales).
       - /etc/localtime:/etc/localtime:ro
 
-    # Optionnel - accélération VAAPI (si /dev/dri existe sur le NAS) :
+    # Optionnel - accélération VAAPI (si /dev/dri existe sur le NAS).
+    # Utilise des GID NUMÉRIQUES : les groupes "video" et "render" n'existent
+    # pas forcément dans l'image, et Docker refuse alors de démarrer.
+    #
+    # Sur le NAS :
+    #   getent group video
+    #   stat -c '%g' /dev/dri/renderD128
+    #
     # devices:
     #   - /dev/dri:/dev/dri
     # group_add:
-    #   - video
-    #   - render
+    #   - "44"     # GID du groupe video
+    #   - "105"    # GID de /dev/dri/renderD128 (valeur d'exemple)
+    #
+    # Vérifie ensuite : docker exec presse-agrumes vainfo
 
     restart: unless-stopped
     # Healthcheck défini dans l'image (/healthz).

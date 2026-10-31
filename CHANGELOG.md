@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.2] - 2026-10-31
+
+### Modifié
+
+- **VAAPI** : le Compose et la documentation utilisent des **GID numériques**
+  pour `group_add`. Les noms `video` et `render` ne sont pas toujours présents
+  dans `/etc/group` de l'image, ce qui provoque
+  `Unable to find group render` au démarrage.
+- Documentation : commandes `getent group video` et
+  `stat -c '%g' /dev/dri/renderD128`, et explication des messages `XDG_RUNTIME_DIR`
+  et `can't connect to X server` de vainfo en headless.
+
 ## [0.10.1] - 2026-10-31
 
 ### Corrigé

@@ -95,3 +95,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.9.0` | 2026-10-31 | Création de dossiers, espace disque et faisabilité avant compression, historique des compressions, nettoyage des codecs dans les noms, téléchargements de test clarifiés. |
 | `v0.10.0` | 2026-10-31 | Codec H.265 (libx265, VAAPI, QSV), benchmark sur fichier réel avec fourchette, diagnostic matériel VAAPI par codec. |
 | `v0.10.1` | 2026-10-31 | Image Docker avec vainfo et pilotes VAAPI (Mesa, Intel non-free amd64, repli i965), documentation VAAPI détaillée. |
+| `v0.10.2` | 2026-10-31 | VAAPI : GID numériques dans le Compose et la doc (les noms video/render peuvent manquer dans l'image), messages vainfo headless documentés. |
