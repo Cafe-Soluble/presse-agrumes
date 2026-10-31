@@ -148,47 +148,60 @@ python3 -m venv .venv
 
 C'est le canal recommandé pour un NAS. L'image est publiée sur
 **GitHub Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en
-`amd64` et `arm64`. **Pas besoin de git, de curl, ni de fichier Compose** :
-Docker télécharge l'image et l'application crée sa configuration au premier
-démarrage.
+`amd64` et `arm64`. **Pas besoin de git**, et aucun `config.toml` à créer :
+la configuration est générée au premier démarrage.
+
+#### Installation recommandée (Docker Compose)
+
+```bash
+mkdir -p presse-agrumes/data
+cd presse-agrumes
+
+curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/download/docker-compose.yml
+```
+
+Ouvre `docker-compose.yml` et adapte les **3 valeurs marquées « À ADAPTER »** :
+
+| Ligne | Format | Signification |
+| --- | --- | --- |
+| `user: "1000:1000"` | `UID:GID` | propriétaire de `./data` et des médias (`id -u`, `id -g`) |
+| `- "8473:8473"` | `port navigateur:port interne` | à gauche le port sur le NAS ; à droite 8473, ne pas changer |
+| `- /volume1/media:/media` | `hôte:conteneur` | à gauche le dossier média **réel sur le NAS** ; à droite `/media`, ne pas changer |
+
+Puis :
+
+```bash
+docker compose up -d
+docker compose logs | grep -A6 "première configuration"
+```
+
+Le mot de passe généré n'est affiché qu'une fois. Ouvre ensuite
+`http://<ip-du-nas>:8473` avec l'utilisateur `agrumes`.
+
+- Configuration : `./data/config.toml` (dans le dossier du projet).
+- Au premier lancement, un assistant propose de choisir le dossier média
+  (ou « Plus tard »).
+- Pour changer le mot de passe ou ajouter des dossiers, édite
+  `./data/config.toml` puis `docker compose restart`.
+- VAAPI, fuseau horaire et permissions : lignes commentées du Compose et
+  [`docs/DOCKER.md`](docs/DOCKER.md).
+
+#### Variante sans Compose (`docker run`)
 
 ```bash
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
   -p 8473:8473 \
-  -v /mnt/media:/media \
+  -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.2
 
-# Récupérer le mot de passe généré au premier démarrage
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
 
-Puis ouvrez `http://<ip-du-nas>:8473` avec l'utilisateur `agrumes` et le mot de
-passe affiché.
-
-- La configuration est créée dans le volume `/data` (`config.toml`), avec
-  `data_dir = "/data"` et `allowed_roots` couvrant les montages courants
-  (`/media`, `/mnt`, `/srv`, `/volume1`, `/volume2`). Au premier lancement,
-  l'assistant propose de choisir le dossier média dans l'interface (ou
-  « Plus tard »).
-- Pour modifier le mot de passe ou ajouter des dossiers, éditez
-  `/data/config.toml` sur l'hôte puis redémarrez. Avec un volume nommé, utilisez
-  un montage répertoire (recommandé sur NAS) :
-  ```bash
-  mkdir -p /volume1/docker/presse-agrumes
-  sudo chown -R 1000:1000 /volume1/docker/presse-agrumes
-  # puis remplacer -v presse-agrumes:/data par :
-  # -v /volume1/docker/presse-agrumes:/data
-  ```
-- Le mot de passe n'est affiché qu'à la première création ; il est aussi dans
-  `/data/config.toml`.
-- Pour VAAPI, ajoutez `--device /dev/dri` et les groupes adaptés.
-- Pour le fuseau horaire : `-v /etc/localtime:/etc/localtime:ro`.
-
-`docker-compose.yml` reste disponible pour ceux qui préfèrent Compose, mais il
-n'est plus nécessaire. Guide complet : [`docs/DOCKER.md`](docs/DOCKER.md)
-(Synology, Unraid, OMV, permissions, VAAPI, fuseau horaire, dépannage).
+Le format des volumes reste `hôte:conteneur` : `/volume1/media` est le dossier
+réel sur le NAS, `/media` le chemin vu par l'application. Ici, la configuration
+est dans le volume nommé `presse-agrumes` au lieu de `./data`.
 
 > **Nom court (optionnel)** : `docker pull cafesoluble/presse-agrumes` nécessite
 > un miroir Docker Hub. Docker Hub n'accepte que lettres minuscules et chiffres
@@ -487,7 +500,8 @@ suppression directe, limites, ETA), `v0.4.0` (configuration uniquement par
 fichier, suppression des variables d'environnement), `v0.4.1` (nettoyage du
 lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en une
 commande, configuration auto-générée), `v0.7.0` (assistant de premier
-démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473).
+démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
+`v0.7.2` (installation Compose en 3 valeurs, Compose publié avec la release).
 
 ## Dépannage
 

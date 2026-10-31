@@ -4,8 +4,8 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.7.1
-ghcr.io/cafe-soluble/presse-agrumes:0.6
+ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+ghcr.io/cafe-soluble/presse-agrumes:0.7
 ```
 
 GHCR est le canal principal : intégration native avec GitHub Actions, pas de
@@ -14,59 +14,97 @@ peut être activé pour obtenir un nom plus court.
 
 Architectures : `linux/amd64` et `linux/arm64`.
 
-## Installation en une commande
+## Installation recommandée : Docker Compose
 
-**Docker télécharge l'image.** Pas besoin de git, de curl, ni de `config.toml`
-préexistant :
+C'est le chemin principal. **Un seul fichier à télécharger** (`docker-compose.yml`)
+et **aucun `config.toml` à créer** : l'application génère sa configuration au
+premier démarrage.
+
+### 1. Télécharger le Compose
+
+```bash
+mkdir -p presse-agrumes/data
+cd presse-agrumes
+
+curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/download/docker-compose.yml
+```
+
+Le fichier est joint à chaque release : il correspond exactement à la version
+de l'image publiée.
+
+### 2. Adapter les 3 valeurs
+
+Ouvre `docker-compose.yml` et repère les lignes marquées **« À ADAPTER »** :
+
+| Ligne | Format | Ce qui est attendu |
+| --- | --- | --- |
+| `user: "1000:1000"` | `UID:GID` | L'utilisateur qui possède `./data` et les médias. `id -u` et `id -g`. |
+| `- "8473:8473"` | `port navigateur:port interne` | À gauche, le port sur le NAS. À droite, 8473 : le port interne, ne pas changer. |
+| `- /volume1/media:/media` | `hôte:conteneur` | À gauche, le dossier média **réel sur le NAS**. À droite, `/media` : le chemin vu par l'application, ne pas changer. |
+
+### 3. Démarrer
+
+```bash
+docker compose up -d
+docker compose logs | grep -A6 "première configuration"
+```
+
+Le mot de passe est généré et affiché une seule fois. Ouvre ensuite
+`http://<ip-du-nas>:8473` avec l'utilisateur `agrumes`.
+
+- La configuration est créée dans `./data/config.toml` (à côté du Compose).
+- Au premier lancement, un assistant propose de choisir le dossier média
+  (ou « Plus tard »).
+- Le dossier `./data` doit exister et être inscriptible par l'UID de `user:`.
+  Crée-le avec le bon utilisateur, ou :
+  ```bash
+  sudo chown -R 1000:1000 data
+  ```
+
+## Comprendre les chemins : hôte vs conteneur
+
+Tous les volumes Docker suivent le format **`hôte:conteneur`** :
+
+| Dans le Compose | Côté | Exemple | Rôle |
+| --- | --- | --- | --- |
+| `- /volume1/media:/media` | **hôte** | `/volume1/media` | Le dossier réel sur le NAS. Il doit exister et être lisible. |
+| | **conteneur** | `/media` | Le chemin vu par l'application. Fixe. |
+| `- ./data:/data` | **hôte** | `./data` | Dossier du projet : config générée, scans, jobs, tests. |
+| | **conteneur** | `/data` | Chemin vu par l'application. Fixe. |
+
+Conséquences :
+
+- `config.toml` ne contient que des chemins **conteneur** : `/data` et
+  `allowed_roots = ["/media"]`. Il ne connaît pas `/volume1`.
+- Pour ajouter un second partage, monte-le sur un autre chemin conteneur, puis
+  ajoute ce chemin dans `allowed_roots` :
+  ```yaml
+  - /volume2/films:/media2
+  ```
+  ```toml
+  allowed_roots = ["/media", "/media2"]
+  ```
+- Si tu utilises la suppression/déplacement des originaux, le montage média
+  doit être en écriture (pas de `:ro`).
+
+## Variante : `docker run` (annexe)
+
+Sans Compose, avec un volume nommé pour la configuration :
 
 ```bash
 docker run -d --name presse-agrumes \
   --restart unless-stopped \
   -p 8473:8473 \
-  -v /mnt/media:/media \
+  -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
-```
+  ghcr.io/cafe-soluble/presse-agrumes:0.7.2
 
-Au premier démarrage, l'entrypoint crée automatiquement :
-
-- `/data/config.toml` avec un **mot de passe aléatoire** ;
-- `data_dir = "/data"` ;
-- `allowed_roots` couvrant les montages courants : `/media`, `/mnt`, `/srv`,
-  `/volume1`, `/volume2`.
-
-Au premier lancement, un **assistant** propose de choisir le dossier média
-parmi ces racines (ou « Plus tard »). Le choix est mémorisé dans
-`/data/settings.json` et préremplit l'étape 1.
-
-Récupérez le mot de passe :
-
-```bash
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
 
-Puis ouvrez `http://<ip-du-nas>:8473`.
-
-> Le mot de passe n'est affiché qu'à la première création. Il reste lisible dans
-> le volume `/data` (`config.toml`). Pour le changer, éditez ce fichier puis
-> redémarrez le conteneur.
-
-Pour un montage hôte (plus facile à sauvegarder/éditer) :
-
-```bash
-mkdir -p /volume1/docker/presse-agrumes
-sudo chown -R 1000:1000 /volume1/docker/presse-agrumes
-
-docker run -d --name presse-agrumes \
-  --restart unless-stopped \
-  -p 8473:8473 \
-  -v /mnt/media:/media \
-  -v /volume1/docker/presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.1
-```
-
-Le fichier de configuration est alors
-`/volume1/docker/presse-agrumes/config.toml`.
+Même règle : `/volume1/media` est le chemin **hôte**, `/media` le chemin
+**conteneur**. La configuration vit dans le volume nommé `presse-agrumes` ;
+pour l'éditer, utilise `docker cp` ou préfère Compose avec `./data`.
 
 ## Nom court via Docker Hub (optionnel)
 
@@ -74,7 +112,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.7.1
+cafesoluble/presse-agrumes:0.7.2
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -90,45 +128,19 @@ les secrets suivants sont définis (Settings → Secrets and variables → Actio
 | `DOCKERHUB_TOKEN` | token d'accès Docker Hub (Read & Write) |
 
 Sans ces secrets, les étapes Docker Hub sont ignorées : GHCR reste seul canal.
-Après leur ajout, pousse un nouveau tag (`v0.6.1`, `v0.7.0`…) pour publier les
+Après leur ajout, pousse un nouveau tag (`v0.7.2`, `v0.8.0`…) pour publier les
 tags de version, puis :
 
 ```bash
-docker pull cafesoluble/presse-agrumes:0.6.1
+docker pull cafesoluble/presse-agrumes:0.7.2
 ```
 
 Les tags publiés sont `<version>`, `<major>.<minor>`, la branche, le SHA court
 et `latest`.
 
-## Avec Docker Compose
-
-```bash
-mkdir -p data && sudo chown -R 1000:1000 data
-docker compose up -d
-docker compose logs | grep -A6 "première configuration"
-```
-
-Le Compose monte `./data:/data` et `/mnt/media:/media`. Adaptez l'UID/GID et le
-chemin média. Le fichier `./data/config.toml` est créé au premier démarrage.
-
-## UID/GID
-
-Le conteneur tourne avec l'utilisateur `app`, UID/GID **1000** par défaut. Si
-ton NAS utilise un autre UID (Synology 1026, Unraid 99…), ajoutez `--user` à
-`docker run` ou `user:` dans Compose, et donnez-lui le volume `/data` :
-
-```bash
-id -u
-id -g
-sudo chown -R 1026:100 /volume1/docker/presse-agrumes
-```
-
-Le serveur doit aussi pouvoir lire les médias et écrire dans les dossiers de
-sortie si tu utilises la suppression/déplacement.
-
 ## Modifier la configuration
 
-Après le premier démarrage, éditez `config.toml` dans le volume `/data` :
+Après le premier démarrage, éditez `./data/config.toml` (ou le volume `/data`) :
 
 ```toml
 [server]
@@ -148,7 +160,8 @@ disabled = false
 Puis :
 
 ```bash
-docker restart presse-agrumes
+docker compose restart
+# ou, sans Compose : docker restart presse-agrumes
 ```
 
 Le port interne doit correspondre au mapping Docker (côté conteneur). Le
@@ -157,8 +170,8 @@ proprement.
 
 ## Synology / Unraid / OMV
 
-Ces interfaces savent coller un `docker-compose.yml` ou créer un conteneur
-graphiquement. Montez au minimum :
+Ces interfaces savent importer le `docker-compose.yml` de la release ou créer
+un conteneur graphiquement. Dans les deux cas, montez au minimum :
 
 - un volume persistant sur `/data` (configuration + données) ;
 - vos médias sur `/media` ;
@@ -281,19 +294,24 @@ suivant évite un décalage UTC :
 
 ## Mises à jour
 
+Le Compose de la release épingle une version précise :
+
+```yaml
+image: ghcr.io/cafe-soluble/presse-agrumes:0.7.2
+```
+
+Pour monter de version, remplace ce numéro par celui de la nouvelle release
+(ou reprends le `docker-compose.yml` de cette release), puis :
+
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-Pour une version stable, épinglez un tag précis plutôt que `latest` :
+Pour des mises à jour automatiques, utilise `:latest` à la place du numéro.
 
-```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.7.1
-```
-
-Les données et la configuration sont sur des volumes : un `pull` ne les efface
-pas. Sauvegardez malgré tout `config.toml` et `data/` avant une mise à jour.
+Les données et la configuration sont dans `./data` : un `pull` ne les efface
+pas. Sauvegarde `./data` avant une mise à jour.
 
 ## Construction locale
 

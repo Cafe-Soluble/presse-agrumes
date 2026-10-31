@@ -102,8 +102,8 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `Dockerfile` | Multi-stage Node → Python, ffmpeg, tini, entrypoint, utilisateur non-root UID 1000, healthcheck `/healthz`. |
 | `docker/entrypoint.sh` | Génère `/data/config.toml` (mot de passe aléatoire affiché) au premier démarrage, puis lance l'app. |
 | `.dockerignore` | Exclut données/médias/tests/docs du contexte de build. |
-| `docker-compose.yml` | Volume `/data` (config générée + data), médias `/media`, localtime, VAAPI optionnel, UID/GID. |
-| `.github/workflows/docker.yml` | Tests, smoke test, build/push multi-arch sur GHCR (+ miroir Docker Hub optionnel via secrets). |
+| `docker-compose.yml` | Chemin recommandé : valeurs inline (sans `.env`), `./data:/data`, médias `/media`, localtime, VAAPI optionnel, UID/GID. |
+| `.github/workflows/docker.yml` | Tests, smoke test, build/push multi-arch sur GHCR, release GitHub avec le Compose (+ miroir Docker Hub optionnel). |
 | `docs/DOCKER.md` | Guide GHCR, Synology/Unraid/OMV, permissions, VAAPI, dépannage. |
 
 L'image est publiée sur `ghcr.io/cafe-soluble/presse-agrumes`. Le package doit

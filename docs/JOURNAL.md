@@ -306,3 +306,18 @@
 - **Migration** : les installations existantes gardent le port de leur
   `config.toml` ; aucune action pour elles.
 - **Tests** : pytest, typecheck, build, Playwright OK.
+
+## 2026-10-31 — v0.7.2 : installation Compose simplifiée
+
+- **Décision** : un seul chemin recommandé (Compose), `docker run` en annexe.
+  Le Compose est téléchargé depuis la release et contient 3 valeurs à adapter
+  (UID/GID, port, chemin média). Pas de `.env` : tout est inline avec des
+  commentaires « À ADAPTER ».
+- **Chemins** : documentation explicite du format `hôte:conteneur`
+  (`/volume1/media:/media`) et distinction avec les chemins conteneur de
+  `config.toml` (`/media`, `/data`).
+- **Scénario A conservé** : aucun `config.toml` à créer, génération automatique
+  dans `./data` avec mot de passe aléatoire affiché dans les logs.
+- **CI** : ajout d'un job `release` (`softprops/action-gh-release`) qui joint
+  `docker-compose.yml` aux releases des tags `v*`.
+- **Tests** : pytest, typecheck, build, Playwright, YAML Compose/workflow.

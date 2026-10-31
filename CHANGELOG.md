@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.2] — 2026-10-31
+
+### Modifié
+
+- **Installation Docker réorganisée autour de Compose** : le
+  `docker-compose.yml` est joint à chaque release GitHub
+  (`releases/latest/download/docker-compose.yml`). Un seul fichier à
+  télécharger, 3 valeurs à adapter (UID/GID, port, dossier média).
+- **`docker-compose.yml`** : valeurs directement dans le fichier (plus de
+  `.env`), commentaires « À ADAPTER » et rappel explicite du format
+  `hôte:conteneur` pour chaque volume.
+- **Documentation** : chemin recommandé unique (Compose), `docker run` en
+  annexe, tableau hôte/conteneur, configuration toujours auto-générée dans
+  `./data/config.toml` au premier démarrage.
+- **CI** : job `release` qui publie le Compose en asset de release pour les
+  tags `v*`.
+
 ## [0.7.1] — 2026-10-31
 
 ### Modifié

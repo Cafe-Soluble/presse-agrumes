@@ -1,39 +1,57 @@
-# Docker Compose pour Presse-Agrumes.
+# =============================================================================
+# Presse-Agrumes — Docker Compose
+# =============================================================================
+# Installation recommandée. Aucun config.toml à créer : il est généré dans
+# ./data au premier démarrage, avec un mot de passe aléatoire affiché dans les
+# logs.
 #
-# Installation minimale : une seule commande, la configuration est créée au
-# premier démarrage dans ./data/config.toml avec un mot de passe aléatoire
-# affiché par `docker compose logs`.
+#   1. Adapter les 3 valeurs marquées « À ADAPTER » ci-dessous.
+#   2. docker compose up -d
+#   3. docker compose logs | grep -A6 "première configuration"
 #
-#   mkdir -p data && sudo chown -R 1000:1000 data
-#   docker compose up -d
-#   docker compose logs | grep -A5 "première configuration"
-#
-# Adaptez l'UID/GID et le chemin média ci-dessous.
+# Rappel des volumes : le format est « hôte:conteneur ».
+#   - à gauche : chemin réel sur le NAS (à adapter) ;
+#   - à droite : chemin vu par l'application (ne pas changer).
+# =============================================================================
 services:
   presse-agrumes:
-    image: ghcr.io/cafe-soluble/presse-agrumes:latest
+    image: ghcr.io/cafe-soluble/presse-agrumes:0.7.2
     container_name: presse-agrumes
-    # UID/GID qui possède les médias et le dossier ./data.
-    # Sur Synology/Unraid, remplacez par votre UID utilisateur (id -u / id -g).
+
+    # À ADAPTER — UID:GID qui possède ./data et les médias.
+    # Trouver les valeurs avec : id -u && id -g
+    # Exemples : Synology 1026:100, Unraid 99:100, utilisateur classique 1000:1000.
     user: "1000:1000"
-    # Le port conteneur (8473) doit correspondre à [server] port dans
-    # ./data/config.toml. Le port hôte est celui du navigateur.
+
     ports:
+      # À ADAPTER — « port du navigateur:port interne ».
+      #   À gauche  : port sur le NAS (celui que tu ouvres dans le navigateur).
+      #   À droite  : 8473, port interne de l'application — ne pas changer,
+      #               sauf si [server] port est modifié dans ./data/config.toml.
       - "8473:8473"
+
     volumes:
-      # Configuration générée + scans/jobs/tests/benchmarks.
-      # Le mot de passe est dans ./data/config.toml, pas dans Compose.
+      # À ADAPTER — « dossier média sur le NAS:chemin dans le conteneur ».
+      #   /volume1/media : chemin RÉEL sur le NAS (à remplacer par le tien).
+      #   /media         : chemin vu par l'application — ne pas changer.
+      # Le dossier hôte doit exister avant le démarrage.
+      - /volume1/media:/media
+
+      # NE PAS CHANGER — « dossier du projet:/data ».
+      #   ./data : dossier à côté de ce docker-compose.yml (données persistantes).
+      #   /data  : configuration générée, scans, jobs, tests, benchmarks.
+      # Il doit exister et être inscriptible par l'UID défini dans user:.
       - ./data:/data
-      # Vos médias : ce chemin doit être dans [paths] allowed_roots
-      # (par défaut /media dans la configuration générée).
-      - /mnt/media:/media
-      # Fuseau horaire pour la planification.
+
+      # Optionnel — fuseau horaire du NAS (planification aux heures locales).
       - /etc/localtime:/etc/localtime:ro
-      # Accélération VAAPI (optionnel, si /dev/dri existe sur le NAS) :
-      # - /dev/dri:/dev/dri
-    # Pour VAAPI, ajoutez les groupes de la carte graphique :
+
+    # Optionnel — accélération VAAPI (si /dev/dri existe sur le NAS) :
+    # devices:
+    #   - /dev/dri:/dev/dri
     # group_add:
     #   - video
     #   - render
+
     restart: unless-stopped
-    # Le healthcheck est défini dans l'image (/healthz).
+    # Healthcheck défini dans l'image (/healthz).
