@@ -276,7 +276,9 @@ export function ResultsPanel({
                 {formatBytes(stats.size)} · {formatDuration(stats.duration)}
               </span>
               <span className="text-muted-foreground/50">•</span>
-              <span className="text-primary">ETA initiale {formatEta(stats.seconds)}</span>
+              <span className="text-primary">
+                {stats.real ? `ETA initiale ${formatEta(stats.seconds)}` : "ETA à calibrer"}
+              </span>
               <Badge variant={stats.source === "mesuré" ? "success" : "secondary"} className="ml-1 text-[10px]">
                 {stats.source}
               </Badge>
@@ -524,7 +526,8 @@ function ItemRow({
         <div>
           <p className="text-[9px] uppercase tracking-wider text-muted-foreground">ETA</p>
           <p className="flex items-center gap-1 text-xs font-semibold tabular-nums text-primary sm:justify-end">
-            <Clock3 className="h-3 w-3" /> {disabled ? "-" : formatEta(estimate.seconds)}
+            <Clock3 className="h-3 w-3" />{" "}
+            {disabled ? "-" : estimate.real ? formatEta(estimate.seconds) : "à calibrer"}
           </p>
         </div>
       </div>

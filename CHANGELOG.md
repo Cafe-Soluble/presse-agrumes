@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.11.2] - 2026-10-31
+
+### Corrigé
+
+- **ETA trompeuse avant calibration** : une mesure de mire ou une table
+  générique affichait une valeur précise, par exemple 5 min pour 1 h 54. Tant
+  qu'aucune mesure réelle du fichier n'existe, l'interface affiche maintenant
+  « à calibrer » et propose le bouton de calibration.
+- Les benchmarks de mire sont distingués des mesures réelles (`real_file`) et
+  marqués « mire » au lieu de « mesuré ».
+
 ## [0.11.1] - 2026-10-31
 
 ### Corrigé

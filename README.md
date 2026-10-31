@@ -268,7 +268,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.11.1
+  ghcr.io/cafe-soluble/presse-agrumes:0.11.2
 
 docker logs presse-agrumes --tail=50
 ```
@@ -583,7 +583,8 @@ création de dossiers, nettoyage des noms de codecs), `v0.10.0` (H.265,
 benchmark sur fichier réel, diagnostic VAAPI), `v0.10.1` (pilotes VAAPI dans
 l'image Docker), `v0.10.2` (GID numériques pour VAAPI), `v0.11.0` (supervision système, nom de
 sortie en direct, suivi en haut de page), `v0.11.1` (ETA calibrée sur le
-fichier réel et remplacement du codec dans le nom).
+fichier réel et remplacement du codec dans le nom), `v0.11.2` (ETA non
+calibrée affichée comme telle).
 
 ## Dépannage
 

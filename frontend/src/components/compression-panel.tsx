@@ -110,6 +110,7 @@ export function CompressionPanel({
   const diskQuery = useDiskSpace(diskPath);
   const encoders = hardware?.ffmpeg.encoders ?? {};
   const vaapi = hardware?.gpu.vaapi_available;
+  const etaIsReal = stats.source === "mesuré" && stats.real;
   const encoderName = effectiveEncoder(hardware, settings);
   const hardwareEncoder = encoderName.endsWith("_vaapi") || encoderName.endsWith("_qsv");
 
@@ -607,11 +608,13 @@ export function CompressionPanel({
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-100">
                   <Clock3 className="h-4 w-4" /> Estimation
                 </h3>
-                <Badge variant={stats.source === "mesuré" ? "success" : "secondary"}>
-                  {stats.source}
+                <Badge variant={etaIsReal ? "success" : "secondary"}>
+                  {etaIsReal ? "mesuré" : stats.source === "mire" ? "mire" : "indicatif"}
                 </Badge>
               </div>
-              <p className="mt-2 text-3xl font-bold tracking-tight">{formatEta(stats.seconds)}</p>
+              <p className="mt-2 text-3xl font-bold tracking-tight">
+                {etaIsReal ? formatEta(stats.seconds) : "à calibrer"}
+              </p>
               <div className="mt-3 space-y-1.5 text-xs">
                 <EstimateRow label="Éléments" value={`${formatNumber(stats.fileCount)} fichier(s)`} />
                 <EstimateRow label="Durée vidéo" value={formatDuration(stats.duration)} />

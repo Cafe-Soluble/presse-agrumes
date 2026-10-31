@@ -59,7 +59,13 @@ export function benchmarkFor(hardware: Hardware | undefined, settings: Compressi
   const prefix = `${encoder}:p${preset}:`;
   for (const [key, value] of Object.entries(benchmarks)) {
     if (key.startsWith(prefix)) {
-      return { fps: value.fps, threads: value.threads, source: "mesuré" as const };
+      const real = value.real_file === true;
+      return {
+        fps: value.fps,
+        threads: value.threads,
+        source: real ? ("mesuré" as const) : ("mire" as const),
+        real,
+      };
     }
   }
   const table = FALLBACK_FPS[encoder] ?? FALLBACK_FPS.libsvtav1;
@@ -71,6 +77,7 @@ export function benchmarkFor(hardware: Hardware | undefined, settings: Compressi
     fps: Math.max(0.5, (table[nearest] ?? 42) * (logical / 12)),
     threads: logical,
     source: "indicatif" as const,
+    real: false,
   };
 }
 
@@ -91,6 +98,7 @@ export function estimateSeconds(
   return {
     seconds: (durationSec / fps) * 1.12 + fileCount * 1.5,
     source: info.source,
+    real: info.real,
     fps,
     threads: perJob,
   };

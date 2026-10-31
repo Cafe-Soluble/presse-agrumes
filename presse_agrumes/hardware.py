@@ -388,6 +388,7 @@ def benchmark(
         "sample_duration_sec": sample_duration,
         "tested_at": datetime.now(timezone.utc).isoformat(),
         "cached": False,
+        "real_file": False,
     }
     cache.setdefault("benchmarks", {})[key] = result
     cache["fingerprint"] = fingerprint

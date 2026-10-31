@@ -456,3 +456,13 @@
   dans le nom, au lieu de supprimer le codec puis d'ajouter un suffixe.
   Miroir frontend `replaceCodecToken`.
 - **Tests** : remplacement de codec, suffixe sans double point, 47 pytest.
+
+## 2026-10-31 - v0.11.2 : ETA non calibrée explicite
+
+- **Constat** : 5 min affichées pour 1 h 54 en hevc_vaapi, à partir de la table
+  générique. Valeur trop optimiste et non mesurée.
+- **Correction** : `benchmarkFor` expose `real` ; la carte Estimation affiche
+  « à calibrer » si la mesure n'est pas réelle, avec le bouton de calibration.
+  Les lignes de résultats et le résumé font de même.
+- **Backend** : les benchmarks de mire portent `real_file: false`.
+- **Tests** : typecheck, build, Playwright.

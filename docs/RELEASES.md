@@ -98,3 +98,4 @@ pas au tag, le service n'a pas été redémarré après le déploiement.
 | `v0.10.2` | 2026-10-31 | VAAPI : GID numériques dans le Compose et la doc (les noms video/render peuvent manquer dans l'image), messages vainfo headless documentés. |
 | `v0.11.0` | 2026-10-31 | Onglet Système (CPU, mémoire, température, GPU), suffixe synchronisé avec le codec, aperçu du nom final, tailles/gain estimés, suivi de compression en haut de page. |
 | `v0.11.1` | 2026-10-31 | ETA initiale calibrée sur un extrait du fichier réel, bouton Calibrer dans l'estimation, remplacement du codec dans le nom (h264 -> av1, x265 -> h265). |
+| `v0.11.2` | 2026-10-31 | ETA non calibrée affichée « à calibrer » au lieu d'une valeur de mire trompeuse ; benchmark synthétique marqué « mire ». |
