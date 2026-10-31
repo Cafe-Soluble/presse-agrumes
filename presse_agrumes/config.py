@@ -36,7 +36,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10
         tomllib = None  # type: ignore[assignment]
 
 APP_NAME = "Presse-Agrumes"
-VERSION = "0.11.2"
+VERSION = "0.11.3"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_FILE = BASE_DIR / "config.toml"

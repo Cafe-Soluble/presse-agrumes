@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.11.3] - 2026-10-31
+
+### Corrigé
+
+- L'estimation affichait « preset X » pour les encodeurs matériels
+  (`hevc_vaapi`, `av1_vaapi`, `hevc_qsv`), alors que ces encodeurs utilisent un
+  QP ou une qualité globale. L'affichage indique maintenant « QP X ».
+
 ## [0.11.2] - 2026-10-31
 
 ### Corrigé

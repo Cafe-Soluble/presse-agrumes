@@ -653,7 +653,9 @@ export function CompressionPanel({
                 />
                 <EstimateRow
                   label="Encodeur"
-                  value={`${effectiveEncoder(hardware, settings)} · preset ${settings.preset}`}
+                  value={`${effectiveEncoder(hardware, settings)}${
+                    hardwareEncoder ? ` · QP ${settings.crf}` : ` · preset ${settings.preset}`
+                  }`}
                 />
               </div>
               {stats.source !== "mesuré" && onCalibrate && (

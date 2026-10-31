@@ -99,7 +99,7 @@ logs. Le volume `/data` contient aussi les scans/jobs.
 ```bash
 docker run -d --name presse-agrumes -p 8473:8473 \
   -v /mnt/media:/media -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.11.2
+  ghcr.io/cafe-soluble/presse-agrumes:0.11.3
 docker logs presse-agrumes
 ```
 
