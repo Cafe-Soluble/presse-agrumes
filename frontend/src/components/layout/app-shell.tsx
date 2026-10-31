@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Citrus, Cpu, History, KeyRound, MonitorPlay, Server, TriangleAlert } from "lucide-react";
+import { Activity, Citrus, Cpu, History, KeyRound, MonitorPlay, Server, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ const navigation = [
   { to: "/", label: "Compression", icon: MonitorPlay, end: true },
   { to: "/history", label: "Historique", icon: History, end: false },
   { to: "/hardware", label: "Matériel", icon: Cpu, end: false },
+  { to: "/system", label: "Système", icon: Activity, end: false },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

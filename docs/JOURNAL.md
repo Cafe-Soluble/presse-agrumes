@@ -430,3 +430,16 @@
   `getent group video` et `stat -c '%g' /dev/dri/renderD128`.
 - **Docs** : messages XDG/X server de vainfo expliqués comme normaux en
   headless.
+
+## 2026-10-31 - v0.11.0 : supervision, suffixe et suivi
+
+- **Système** : `presse_agrumes/system.py` lit /proc et /sys (CPU, mémoire,
+  température, GPU AMD/NVIDIA/Intel), route `/api/system`, page `/system` avec
+  rafraîchissement 2 s.
+- **Suffixe** : synchronisé avec le codec (.av1/.h265), sauf suffixe
+  personnalisé ; aperçu du nom final via `lib/output-name.ts`, miroir de
+  `media.output_filename`.
+- **Estimation** : taille actuelle, sortie estimée et gain en octets et pour
+  cent.
+- **Mise en page** : JobPanel déplacé avant les réglages et les résultats.
+- **Tests** : `/api/system`, typecheck, build, Playwright (navigation Système).

@@ -651,6 +651,19 @@ export function WorkspacePage() {
           </Alert>
         )}
 
+        {jobVisible && compressionJob.data && (
+          <JobPanel
+            job={compressionJob.data}
+            onCancel={() => compressionJob.data && cancelCompression.mutate(compressionJob.data.id)}
+            onRescan={() => handleStartScan(scan?.root)}
+            onDismiss={closeJob}
+            onPause={() => compressionJob.data && pauseCompression.mutate(compressionJob.data.id)}
+            onResume={() => compressionJob.data && resumeCompression.mutate(compressionJob.data.id)}
+            pausing={pauseCompression.isPending}
+            resuming={resumeCompression.isPending}
+          />
+        )}
+
         {scan && (
           <CompressionPanel
             config={configQuery.data}
@@ -697,19 +710,6 @@ export function WorkspacePage() {
             settings={settings}
             resourcePercent={resourcePercent}
             concurrency={concurrency}
-          />
-        )}
-
-        {jobVisible && compressionJob.data && (
-          <JobPanel
-            job={compressionJob.data}
-            onCancel={() => compressionJob.data && cancelCompression.mutate(compressionJob.data.id)}
-            onRescan={() => handleStartScan(scan?.root)}
-            onDismiss={closeJob}
-            onPause={() => compressionJob.data && pauseCompression.mutate(compressionJob.data.id)}
-            onResume={() => compressionJob.data && resumeCompression.mutate(compressionJob.data.id)}
-            pausing={pauseCompression.isPending}
-            resuming={resumeCompression.isPending}
           />
         )}
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.11.0] - 2026-10-31
+
+### Ajouté
+
+- **Onglet Système** : charge CPU, mémoire, température et GPU en temps réel
+  (rafraîchissement toutes les 2 secondes). Les valeurs non exposées par le
+  matériel restent à `null` au lieu d'être inventées.
+- **Aperçu du nom final** dans les réglages de sortie, avec le codec, le
+  conteneur et le suffixe appliqués. Le suffixe passe automatiquement de
+  `.av1` à `.h265` quand on change de codec (sauf suffixe personnalisé).
+- **Estimation détaillée** : taille actuelle, taille estimée après compression
+  et gain en octets et en pourcentage.
+
+### Modifié
+
+- Le panneau de suivi de compression est affiché en haut de la page, avant les
+  réglages et les résultats.
+
 ## [0.10.2] - 2026-10-31
 
 ### Modifié

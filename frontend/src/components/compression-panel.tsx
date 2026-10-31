@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -33,7 +34,9 @@ import {
   formatDuration,
   formatEta,
   formatNumber,
+  formatPercent,
 } from "@/lib/utils";
+import { outputFileName } from "@/lib/output-name";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -107,6 +110,27 @@ export function CompressionPanel({
   const vaapi = hardware?.gpu.vaapi_available;
   const encoderName = effectiveEncoder(hardware, settings);
   const hardwareEncoder = encoderName.endsWith("_vaapi") || encoderName.endsWith("_qsv");
+
+  // Le suffixe suit le codec, sauf si l'utilisateur a mis le sien.
+  useEffect(() => {
+    const wanted = settings.codec === "hevc" ? ".h265" : ".av1";
+    if (!output.suffix || output.suffix === ".av1" || output.suffix === ".h265") {
+      if (output.suffix !== wanted) onOutputChange({ ...output, suffix: wanted });
+    }
+  }, [settings.codec, output.suffix, onOutputChange]);
+
+  const sample = useMemo(() => {
+    const selected = scan.items.filter((item) => selection.has(item.id));
+    for (const item of [...selected, ...scan.items]) {
+      if (item.kind === "series" && item.episodes?.length) return item.episodes[0];
+      if (item.kind === "file") return item;
+    }
+    return undefined;
+  }, [scan.items, selection]);
+
+  const finalName = sample
+    ? outputFileName(sample.filename || sample.path.split("/").pop() || "fichier", settings, output)
+    : null;
   const qualityLabel = hardwareEncoder ? "QP (qualité)" : "CRF (qualité)";
   const qualityMax = settings.codec === "hevc" ? 51 : 63;
   const logical = hardware?.cpu.logical_cores ?? 4;
@@ -180,13 +204,18 @@ export function CompressionPanel({
                   <Label>Codec</Label>
                   <Select
                     value={settings.codec}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
+                      const codec = value as CompressionSettings["codec"];
                       patch({
-                        codec: value as CompressionSettings["codec"],
+                        codec,
                         encoder: "auto",
-                        crf: value === "hevc" ? 26 : 32,
-                      })
-                    }
+                        crf: codec === "hevc" ? 26 : 32,
+                      });
+                      onOutputChange({
+                        ...output,
+                        suffix: codec === "hevc" ? ".h265" : ".av1",
+                      });
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -557,6 +586,18 @@ export function CompressionPanel({
                 />
                 Écraser une sortie existante
               </label>
+
+              {finalName && (
+                <div className="mt-3 rounded-lg border border-border/60 bg-background/40 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Nom final
+                  </p>
+                  <p className="mt-1 break-all font-mono text-xs text-foreground">{finalName}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Exemple avec {sample?.filename || "le premier fichier sélectionné"}
+                  </p>
+                </div>
+              )}
             </section>
 
             <section className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/[0.09] to-primary/[0.02] p-4">
@@ -573,8 +614,21 @@ export function CompressionPanel({
                 <EstimateRow label="Éléments" value={`${formatNumber(stats.fileCount)} fichier(s)`} />
                 <EstimateRow label="Durée vidéo" value={formatDuration(stats.duration)} />
                 <EstimateRow
-                  label="Sortie estimée"
+                  label="Taille actuelle"
+                  value={formatBytes(preflight?.total_input_bytes ?? stats.size)}
+                />
+                <EstimateRow
+                  label="Après compression"
                   value={preflight?.total_estimated_output_human ?? formatBytes(stats.output)}
+                />
+                <EstimateRow
+                  label="Gain estimé"
+                  value={(() => {
+                    const current = preflight?.total_input_bytes ?? stats.size;
+                    const outputBytes = preflight?.total_estimated_output_bytes ?? stats.output;
+                    const gain = Math.max(0, current - outputBytes);
+                    return `${formatBytes(gain)} (${formatPercent(current ? (gain / current) * 100 : 0)})`;
+                  })()}
                 />
                 <EstimateRow
                   label="Espace libre"

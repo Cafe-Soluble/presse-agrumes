@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { WorkspacePage } from "@/pages/workspace-page";
 import { HistoryPage } from "@/pages/history-page";
 import { HardwarePage } from "@/pages/hardware-page";
+import { SystemPage } from "@/pages/system-page";
 import { ToastProvider } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/" element={<WorkspacePage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/hardware" element={<HardwarePage />} />
+            <Route path="/system" element={<SystemPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AppShell>

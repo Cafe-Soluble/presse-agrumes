@@ -37,6 +37,15 @@ export function useSetup() {
   });
 }
 
+export function useSystemStats() {
+  return useQuery({
+    queryKey: ["system"],
+    queryFn: api.system,
+    refetchInterval: 2000,
+    staleTime: 1000,
+  });
+}
+
 export function useDiskSpace(path?: string) {
   return useQuery({
     queryKey: ["disk", path],

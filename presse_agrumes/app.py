@@ -25,7 +25,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, hardware, media, paths, storage
+from . import config, hardware, media, paths, storage, system
 from . import __version__
 from .jobs import TERMINAL_STATUSES, manager
 from .models import (
@@ -286,6 +286,10 @@ npm run build</pre>
         except OSError as exc:
             raise paths.PathError(f"Création impossible : {exc}") from exc
         return {"path": str(target)}
+
+    @app.get("/api/system")
+    async def system_stats():
+        return await asyncio.to_thread(system.snapshot)
 
     @app.get("/api/disk")
     async def disk_space(path: str = Query(..., min_length=1)):

@@ -498,3 +498,30 @@ export interface TestPayload {
   start_seconds: number;
   settings: CompressionSettings;
 }
+
+export interface SystemStats {
+  timestamp: string;
+  cpu: {
+    percent: number | null;
+    cores: number;
+    load_1: number | null;
+    load_5: number | null;
+    load_15: number | null;
+  };
+  memory: {
+    total_bytes: number | null;
+    used_bytes: number | null;
+    available_bytes: number | null;
+    percent: number | null;
+  };
+  temperature: { celsius: number | null; sensor: string | null };
+  gpu: {
+    name: string;
+    utilization_percent: number | null;
+    memory_used_bytes: number | null;
+    memory_total_bytes: number | null;
+    temperature_c: number | null;
+    frequency_mhz: number | null;
+    source: string;
+  } | null;
+}

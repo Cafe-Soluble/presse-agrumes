@@ -23,6 +23,9 @@ test("la SPA se charge et navigue entre les vues", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Matériel & estimation" })).toBeVisible();
   await expect(page.getByText("Encodeurs détectés")).toBeVisible();
 
+  await page.getByRole("link", { name: "Système" }).click();
+  await expect(page.getByRole("heading", { name: "Système" })).toBeVisible();
+
   await page.getByRole("link", { name: "Historique" }).click();
   await expect(page.getByRole("heading", { name: "Historique", exact: true })).toBeVisible();
 

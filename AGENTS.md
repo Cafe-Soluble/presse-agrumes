@@ -72,6 +72,7 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `models.py` | Schémas Pydantic des requêtes (dont `CompressionSchedule`). |
 | `storage.py` | Écriture JSON atomique (scans, jobs, tests, cache matériel). |
 | `config.py` | Chargement exclusif de `config.toml`, auth, chemins, binaires. |
+| `system.py` | Métriques /proc et /sys : CPU, mémoire, température, GPU. |
 | `__main__.py` | CLI Uvicorn, `--config`, scan de port, affichage URL/IP, source du mot de passe. |
 
 ### Frontend `frontend/src/`
@@ -89,6 +90,8 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `components/browse-dialog.tsx` | Navigateur de dossiers (racine, séries, sortie, corbeille). |
 | `components/setup-dialog.tsx` | Assistant de premier démarrage : choix du dossier média (mémorisé côté serveur). |
 | `components/password-dialog.tsx` | Changement du mot de passe (écrit dans `config.toml`, sans redémarrage). |
+| `pages/system-page.tsx` | Supervision temps réel (CPU, mémoire, température, GPU). |
+| `lib/output-name.ts` | Miroir du nom de sortie (suffixe, nettoyage codec) pour l'aperçu. |
 | `components/page.tsx`, `layout/app-shell.tsx` | Mise en page, header, navigation. |
 | `components/ui/*` | Composants shadcn/ui (Button, Card, Dialog, Select, Slider…). |
 | `lib/api.ts` | Client API typé. Toute nouvelle route doit y être ajoutée. |

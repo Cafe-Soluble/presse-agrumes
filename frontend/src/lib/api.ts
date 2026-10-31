@@ -45,6 +45,7 @@ export const api = {
   hardware: (refresh = false) =>
     request<Hardware>(`/api/hardware${refresh ? "?refresh=true" : ""}`),
   mounts: () => request<{ roots: MountRoot[]; home: string }>("/api/mounts"),
+  system: () => request<import("./types").SystemStats>("/api/system"),
   disk: (path: string) =>
     request<{
       path: string;

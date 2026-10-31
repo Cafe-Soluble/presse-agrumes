@@ -625,3 +625,13 @@ def test_disk_space(client, media_root: Path):
     assert payload["total_bytes"] >= payload["free_bytes"]
     denied = client.get("/api/disk", params={"path": "/etc"})
     assert denied.status_code == 400
+
+
+def test_system_stats(client):
+    response = client.get("/api/system")
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["cpu"]["cores"] >= 1
+    assert data["memory"]["total_bytes"] is None or data["memory"]["total_bytes"] > 0
+    assert "temperature" in data
+    assert "gpu" in data

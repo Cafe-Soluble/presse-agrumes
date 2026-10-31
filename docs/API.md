@@ -25,6 +25,7 @@ curl -u agrumes:motdepasse http://127.0.0.1:8473/api/health
 | GET | `/api/config` | Presets qualité, défauts, racines autorisées, notes, fuseau. |
 | GET | `/api/mounts` | Racines pratiques (home, `/mnt`, `/media`, montages). |
 | GET | `/api/disk?path=/media` | Espace libre/total et pourcentage utilisé pour un dossier autorisé. |
+| GET | `/api/system` | Charge CPU, mémoire, température et GPU (valeurs indisponibles à `null`). |
 | POST | `/api/auth/password` | Change le mot de passe (`current_password`, `new_password`) et réécrit `config.toml`. |
 | GET | `/api/setup` | État de l'assistant : `needed`, dossier média mémorisé, racines autorisées. |
 | POST | `/api/setup` | Enregistre le dossier média choisi (`{"media_root": "/media/Films"}`) dans `data/settings.json`. |
