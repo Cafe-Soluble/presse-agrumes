@@ -255,7 +255,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.8.1
+  ghcr.io/cafe-soluble/presse-agrumes:0.8.2
 
 docker logs presse-agrumes --tail=50
 ```
@@ -564,7 +564,8 @@ démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 `v0.7.2` (installation Compose en 3 valeurs, Compose publié avec la release),
 `v0.7.3` (diagnostic permissions et choix du montage média), `v0.8.0`
 (changement de mot de passe, annulation des analyses, guide Compose pas-à-pas),
-`v0.8.1` (gain ajusté au CRF choisi).
+`v0.8.1` (gain ajusté au CRF choisi), `v0.8.2` (analyse active conservée
+entre les vues).
 
 ## Dépannage
 

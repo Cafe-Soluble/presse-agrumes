@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.8.2] — 2026-10-31
+
+### Corrigé
+
+- **Analyse active perdue en changeant de page** : les liens « Matériel » et
+  « Historique » perdent le paramètre `?scan=`, donc l'analyse affichée
+  disparaissait et il fallait la rouvrir. L'identifiant est maintenant mémorisé
+  (`localStorage`) et restauré au retour sur la page Compression.
+- Si l'analyse mémorisée n'existe plus, l'alerte propose un bouton **Fermer**
+  qui efface la référence au lieu de bloquer la page.
+
 ## [0.8.1] — 2026-10-31
 
 ### Corrigé

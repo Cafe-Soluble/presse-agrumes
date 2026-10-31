@@ -106,7 +106,15 @@ export function WorkspacePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeScanId = searchParams.get("scan");
+  // Mémorise l'analyse affichée pour la retrouver après un passage par
+  // « Matériel » ou « Historique » (les liens de navigation perdent le ?scan=).
+  const [lastScanId, setLastScanId] = useLocalStorage("pa.activeScan", "");
+  const activeScanId = searchParams.get("scan") || lastScanId || null;
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("scan");
+    if (fromUrl) setLastScanId(fromUrl);
+  }, [searchParams, setLastScanId]);
 
   const configQuery = useConfig();
   const hardwareQuery = useHardware();
@@ -443,6 +451,7 @@ export function WorkspacePage() {
     setSelection(new Set());
     setCompressionJobId(null);
     setScanJobId(null);
+    setLastScanId("");
     setSearchParams({});
     startScan.mutate({ targetRoot, options });
   };
@@ -610,7 +619,20 @@ export function WorkspacePage() {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Impossible de charger cette analyse : {(scanQuery.error as Error).message}
+              <span className="flex flex-wrap items-center justify-between gap-3">
+                <span>Impossible de charger cette analyse : {(scanQuery.error as Error).message}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setLastScanId("");
+                    setSearchParams({});
+                  }}
+                >
+                  Fermer
+                </Button>
+              </span>
             </AlertDescription>
           </Alert>
         )}

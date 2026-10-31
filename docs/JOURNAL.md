@@ -365,3 +365,14 @@
 - **Tests** : `test_adjusted_gain_follows_crf` et
   `test_preflight_output_depends_on_crf` (CRF 24 > CRF 34 en taille estimée).
 - **Release** : v0.8.1.
+
+## 2026-10-31 — v0.8.2 : analyse active conservée
+
+- **Bug** : `activeScanId` venait uniquement de `?scan=` ; la navigation vers
+  `/hardware` ou `/history` (NavLink vers `/`) perdait le paramètre, donc
+  l'analyse affichée disparaissait.
+- **Correction** : identifiant mémorisé dans `pa.activeScan` (localStorage),
+  restauré quand l'URL n'a pas `?scan=`. Le démarrage d'une nouvelle analyse
+  efface la référence. En cas d'analyse supprimée, bouton « Fermer ».
+- **Tests** : typecheck, build, Playwright.
+- **Release** : v0.8.2.
