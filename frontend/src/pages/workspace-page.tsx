@@ -62,6 +62,7 @@ import {
 import { useToast } from "@/components/ui/toaster";
 
 const DEFAULT_SETTINGS: CompressionSettings = {
+  codec: "av1",
   encoder: "auto",
   preset: 8,
   crf: 32,
@@ -415,17 +416,29 @@ export function WorkspacePage() {
   });
 
   const calibrate = useMutation({
-    mutationFn: () =>
+    mutationFn: (samplePath?: string) =>
       api.benchmark({
         encoder: effectiveEncoder(hardwareQuery.data, settings),
         preset: Number(settings.preset),
-        force: false,
+        force: true,
+        path: samplePath,
+        settings,
+        samples: 3,
+        threads: Math.max(
+          1,
+          Math.round(((hardwareQuery.data?.cpu.logical_cores ?? 4) * resourcePercent) / 100),
+        ),
       }),
     onSuccess: (result) => {
       queryClient.setQueryData(["hardware"], result.hardware);
+      const benchmark = result.benchmark;
+      const range =
+        benchmark.speed_min && benchmark.speed_max
+          ? ` (${benchmark.speed_min}x a ${benchmark.speed_max}x)`
+          : "";
       toast({
-        title: "ETA calibrée",
-        description: `${result.benchmark.fps} fps mesurés pour ${result.benchmark.encoder} (preset ${result.benchmark.preset}).`,
+        title: "ETA calibrée sur le fichier",
+        description: `${benchmark.fps} fps mesurés${range} pour ${benchmark.encoder}.`,
         variant: "success",
       });
     },
@@ -677,7 +690,7 @@ export function WorkspacePage() {
             onTest={openTest}
             onDeleteItem={(item) => setDeleteTarget({ kind: "item", item })}
             onDeleteError={(path) => setDeleteTarget({ kind: "error", path })}
-            onCalibrate={() => calibrate.mutate()}
+            onCalibrate={(samplePath) => calibrate.mutate(samplePath)}
             calibrating={calibrate.isPending}
             onRescan={() => handleStartScan(scan.root)}
             hardware={hardwareQuery.data}

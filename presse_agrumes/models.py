@@ -28,9 +28,18 @@ class ScanRequest(BaseModel):
 
 
 class Sv1Settings(BaseModel):
-    """Réglages de compression AV1."""
+    """Réglages de compression AV1 ou H.265."""
 
-    encoder: Literal["auto", "libsvtav1", "libaom-av1", "av1_vaapi"] = "auto"
+    codec: Literal["av1", "hevc"] = "av1"
+    encoder: Literal[
+        "auto",
+        "libsvtav1",
+        "libaom-av1",
+        "av1_vaapi",
+        "libx265",
+        "hevc_vaapi",
+        "hevc_qsv",
+    ] = "auto"
     preset: int = Field(default=8, ge=0, le=13)
     crf: int = Field(default=32, ge=0, le=63)
     pixel_format: Literal["yuv420p", "yuv420p10le"] = "yuv420p"
@@ -157,10 +166,16 @@ class PasswordChange(BaseModel):
 
 
 class BenchmarkRequest(BaseModel):
-    encoder: Literal["libsvtav1", "libaom-av1", "av1_vaapi"] = "libsvtav1"
+    encoder: Literal[
+        "auto", "libsvtav1", "libaom-av1", "av1_vaapi",
+        "libx265", "hevc_vaapi", "hevc_qsv",
+    ] = "libsvtav1"
     preset: int = Field(default=8, ge=0, le=13)
     threads: int | None = Field(default=None, ge=1, le=128)
     force: bool = False
+    path: str | None = None
+    settings: CompressionSettings | None = None
+    samples: int = Field(default=3, ge=1, le=5)
 
 
 class DeleteScanItems(BaseModel):

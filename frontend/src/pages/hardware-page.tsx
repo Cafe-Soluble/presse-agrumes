@@ -39,14 +39,29 @@ export function HardwarePage() {
 
   useEffect(() => {
     if (!hardware || initialized.current) return;
-    const supported = ["libsvtav1", "libaom-av1", "av1_vaapi"].filter(
-      (name) => hardware.ffmpeg.encoders[name] && (name !== "av1_vaapi" || hardware.gpu.vaapi_available),
+    const supported = [
+      "libsvtav1", "libaom-av1", "av1_vaapi", "libx265", "hevc_vaapi", "hevc_qsv",
+    ].filter(
+      (name) =>
+        hardware.ffmpeg.encoders[name] &&
+        (!name.endsWith("_vaapi") || hardware.gpu.vaapi_available),
     );
     if (!supported.includes(encoder) && supported[0]) setEncoder(supported[0]);
     const defaultSettings = config.data?.defaults.settings;
     if (defaultSettings) setPreset(defaultSettings.preset);
     initialized.current = true;
   }, [hardware, encoder, config.data]);
+
+  const probeHardware = useMutation({
+    mutationFn: () => api.hardware(true),
+    onSuccess: (data) => queryClient.setQueryData(["hardware"], data),
+    onError: (error: Error) =>
+      toast({
+        title: "Test matériel impossible",
+        description: error.message,
+        variant: "error",
+      }),
+  });
 
   const benchmark = useMutation({
     mutationFn: () => api.benchmark({ encoder, preset, force: true }),
@@ -85,8 +100,12 @@ export function HardwarePage() {
     );
   }
 
-  const supportedEncoders = ["libsvtav1", "libaom-av1", "av1_vaapi"].filter(
-    (name) => hardware.ffmpeg.encoders[name] && (name !== "av1_vaapi" || hardware.gpu.vaapi_available),
+  const supportedEncoders = [
+    "libsvtav1", "libaom-av1", "av1_vaapi", "libx265", "hevc_vaapi", "hevc_qsv",
+  ].filter(
+    (name) =>
+      hardware.ffmpeg.encoders[name] &&
+      (!name.endsWith("_vaapi") || hardware.gpu.vaapi_available),
   );
 
   return (
@@ -122,10 +141,11 @@ export function HardwarePage() {
         <SpecCard
           icon={<MonitorCog className="h-4 w-4" />}
           title="GPU / VAAPI"
-          main={hardware.gpu.vaapi_available ? "VAAPI disponible" : "Pas de VAAPI"}
+          main={hardware.gpu.vaapi_available ? "VAAPI utilisable" : "Pas de VAAPI utilisable"}
           rows={[
             ["Périphériques", hardware.gpu.devices.join(", ") || "aucun"],
-            ["Encodage GPU", hardware.ffmpeg.encoders.av1_vaapi ? "AV1 VAAPI compilé" : "indisponible"],
+            ["Pilote", hardware.gpu.vaapi?.driver ?? "-"],
+            ["Cause", hardware.gpu.vaapi?.reason ?? (hardware.gpu.vaapi_available ? "aucune" : "-")],
           ]}
         />
         <SpecCard
@@ -140,11 +160,97 @@ export function HardwarePage() {
         />
       </div>
 
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" /> Accélération matérielle
+          </CardTitle>
+          <CardDescription>
+            Capacités réelles du pilote VAAPI, par codec. « Compilé » signifie seulement que
+            ffmpeg contient l'encodeur, pas que le GPU sait l'utiliser.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge variant={hardware.gpu.vaapi_available ? "success" : "warning"}>
+              {hardware.gpu.vaapi_available ? "VAAPI utilisable" : "VAAPI non utilisable"}
+            </Badge>
+            {hardware.gpu.vaapi?.driver && (
+              <span className="text-xs text-muted-foreground">{hardware.gpu.vaapi.driver}</span>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              disabled={probeHardware.isPending}
+              onClick={() => probeHardware.mutate()}
+            >
+              {probeHardware.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="h-3.5 w-3.5" />
+              )}
+              Tester le matériel
+            </Button>
+          </div>
+
+          {hardware.gpu.vaapi?.reason && (
+            <Alert variant="warning" className="py-2">
+              <AlertDescription className="text-xs">{hardware.gpu.vaapi.reason}</AlertDescription>
+            </Alert>
+          )}
+
+          {hardware.gpu.vaapi ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border/60 text-left text-[10px] uppercase tracking-wider text-muted-foreground">
+                      <th className="px-2 py-2">Codec</th>
+                      <th className="px-2 py-2 text-center">Décodage</th>
+                      <th className="px-2 py-2 text-center">Encodage</th>
+                      <th className="px-2 py-2 text-center">Compilé ffmpeg</th>
+                      <th className="px-2 py-2 text-center">Test réel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hardware.gpu.vaapi.codecs.map((codec) => (
+                      <tr key={codec.codec} className="border-b border-border/30">
+                        <td className="px-2 py-2">{codec.label}</td>
+                        <td className="px-2 py-2 text-center">{codec.decode ? "✅" : "❌"}</td>
+                        <td className="px-2 py-2 text-center">{codec.encode ? "✅" : "❌"}</td>
+                        <td className="px-2 py-2 text-center">{codec.compiled ? "✅" : "❌"}</td>
+                        <td className="px-2 py-2 text-center">
+                          {codec.tested_encode === null
+                            ? "non testé"
+                            : codec.tested_encode
+                              ? "✅"
+                              : "❌"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Décodage/encodage proviennent de vainfo. « Test réel » lance un mini-encodage
+                ffmpeg sur le GPU quand tu cliques sur le bouton.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Aucun diagnostic VAAPI disponible. Vérifie /dev/dri et le paquet vainfo.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" /> Encodeurs AV1 détectés
+              <Activity className="h-4 w-4 text-primary" /> Encodeurs détectés
             </CardTitle>
             <CardDescription>La disponibilité dépend du build ffmpeg installé sur le NAS.</CardDescription>
           </CardHeader>
@@ -185,8 +291,9 @@ export function HardwarePage() {
               <Gauge className="h-4 w-4 text-primary" /> Calibrer l'estimation
             </CardTitle>
             <CardDescription>
-              Encode 4 secondes de mire 1080p pour mesurer les images/seconde réelles. Sans benchmark,
-              l'ETA est indicative.
+              Mesure rapide sur une mire 1080p. Pour une estimation fiable sur tes films, utilise
+              le bouton « Calibrer » des résultats : il encode 3 extraits du fichier réel avec les
+              réglages choisis.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -235,8 +342,12 @@ export function HardwarePage() {
               <Alert variant="success">
                 <AlertDescription>
                   <strong>{benchmark.data.benchmark.fps} fps</strong> - vitesse{" "}
-                  {benchmark.data.benchmark.speed}×, mesuré en {benchmark.data.benchmark.elapsed_sec} s.
-                  L'ETA est maintenant basée sur cette mesure.
+                  {benchmark.data.benchmark.speed}×
+                  {benchmark.data.benchmark.speed_min !== undefined &&
+                  benchmark.data.benchmark.speed_max !== undefined
+                    ? ` (fourchette ${benchmark.data.benchmark.speed_min}× à ${benchmark.data.benchmark.speed_max}×)`
+                    : ""}
+                  . L'ETA est maintenant basée sur cette mesure.
                 </AlertDescription>
               </Alert>
             )}
@@ -307,6 +418,7 @@ export function HardwarePage() {
 }
 
 const defaultSettings = {
+  codec: "av1" as const,
   encoder: "auto" as const,
   preset: 8,
   crf: 32,

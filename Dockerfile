@@ -28,7 +28,7 @@ RUN npm run build
 
 FROM python:${PYTHON_VERSION}-slim-trixie AS runtime
 
-ARG APP_VERSION=0.9.0
+ARG APP_VERSION=0.10.0
 LABEL org.opencontainers.image.title="Presse-Agrumes" \
       org.opencontainers.image.description="Analyse et compression AV1 de bibliothèques vidéo" \
       org.opencontainers.image.source="https://github.com/Cafe-Soluble/presse-agrumes" \

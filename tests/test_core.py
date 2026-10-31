@@ -198,3 +198,29 @@ def test_strip_codec_tokens():
     assert media.strip_codec_tokens("Serie.X264.1080p") == "Serie.1080p"
     assert media.strip_codec_tokens("Film.HEVC-GROUP") == "Film-GROUP"
     assert media.strip_codec_tokens("Sans codec") == "Sans codec"
+
+
+def test_hevc_encoder_arguments():
+    from presse_agrumes import models
+
+    settings = models.CompressionSettings(
+        codec="hevc", encoder="libx265", preset=4, crf=24,
+        pixel_format="yuv420p10le",
+    )
+    args = media.video_encode_args(settings, "libx265", 4)
+    assert "libx265" in args
+    assert "medium" in args
+    assert "24" in args
+    assert "yuv420p10le" in args
+
+    vaapi = models.CompressionSettings(
+        codec="hevc", encoder="hevc_vaapi", preset=8, crf=26,
+        pixel_format="yuv420p",
+    )
+    vaapi_args = media.video_encode_args(vaapi, "hevc_vaapi", 4)
+    assert "hevc_vaapi" in vaapi_args
+    assert "hwupload" in " ".join(vaapi_args)
+    assert "26" in vaapi_args
+
+    assert media.choose_encoder("auto", {"libx265": True}, "hevc") == "libx265"
+    assert media.choose_encoder("auto", {"libsvtav1": True}, "hevc") is None

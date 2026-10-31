@@ -395,3 +395,18 @@
   d'union et règle dans AGENTS.md.
 - **Tests** : mkdir, disk, strip_codec, space_ok ; 44 pytest, typecheck, build,
   Playwright.
+
+## 2026-10-31 - v0.10.0 : H.265, benchmark réel, diagnostic VAAPI
+
+- **H.265** : `codec` dans les réglages, encodeurs libx265/hevc_vaapi/hevc_qsv,
+  `media.video_encode_args` partagé entre compression, test et benchmark.
+  Mapping des presets x265/QSV, QP pour le matériel, `-tag:v hvc1` en MP4.
+- **Benchmark réel** : `hardware.benchmark_real`, 3 extraits (20/50/80 %),
+  `-ss` avant `-i`, vitesse stable hors warm-up, médiane et bornes, taille
+  estimée, cache préfixé `:real`. Le bouton Calibrer envoie le fichier et les
+  réglages.
+- **Diagnostic VAAPI** : `_vaapi_diagnostics` (vainfo, profils/entrypoints,
+  permissions, tests réels d'encodage et de décodage), tableau dans la page
+  Matériel.
+- **Tests** : arguments libx265/hevc_vaapi, choix d'encodeur H.265 ; 45 pytest,
+  typecheck, build, Playwright.

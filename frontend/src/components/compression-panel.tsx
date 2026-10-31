@@ -105,6 +105,10 @@ export function CompressionPanel({
   const diskQuery = useDiskSpace(diskPath);
   const encoders = hardware?.ffmpeg.encoders ?? {};
   const vaapi = hardware?.gpu.vaapi_available;
+  const encoderName = effectiveEncoder(hardware, settings);
+  const hardwareEncoder = encoderName.endsWith("_vaapi") || encoderName.endsWith("_qsv");
+  const qualityLabel = hardwareEncoder ? "QP (qualité)" : "CRF (qualité)";
+  const qualityMax = settings.codec === "hevc" ? 51 : 63;
   const logical = hardware?.cpu.logical_cores ?? 4;
   const threads = Math.max(1, Math.round((logical * resourcePercent) / 100));
   const perJob = Math.max(1, Math.floor(threads / Math.max(1, concurrency)));
@@ -173,6 +177,28 @@ export function CompressionPanel({
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
+                  <Label>Codec</Label>
+                  <Select
+                    value={settings.codec}
+                    onValueChange={(value) =>
+                      patch({
+                        codec: value as CompressionSettings["codec"],
+                        encoder: "auto",
+                        crf: value === "hevc" ? 26 : 32,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="av1">AV1 (SVT-AV1)</SelectItem>
+                      <SelectItem value="hevc">H.265 / HEVC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Encodeur</Label>
                   <Select
                     value={settings.encoder}
@@ -185,15 +211,34 @@ export function CompressionPanel({
                       <SelectItem value="auto">
                         Auto - {effectiveEncoder(hardware, { ...settings, encoder: "auto" })}
                       </SelectItem>
-                      <SelectItem value="libsvtav1" disabled={!encoders.libsvtav1}>
-                        SVT-AV1 (CPU rapide)
-                      </SelectItem>
-                      <SelectItem value="libaom-av1" disabled={!encoders["libaom-av1"]}>
-                        libaom AV1 (CPU lent)
-                      </SelectItem>
-                      <SelectItem value="av1_vaapi" disabled={!encoders.av1_vaapi || !vaapi}>
-                        VAAPI (GPU)
-                      </SelectItem>
+                      {settings.codec === "av1" ? (
+                        <>
+                          <SelectItem value="libsvtav1" disabled={!encoders.libsvtav1}>
+                            SVT-AV1 (CPU rapide)
+                          </SelectItem>
+                          <SelectItem value="libaom-av1" disabled={!encoders["libaom-av1"]}>
+                            libaom AV1 (CPU lent)
+                          </SelectItem>
+                          <SelectItem value="av1_vaapi" disabled={!encoders.av1_vaapi || !vaapi}>
+                            VAAPI (GPU)
+                          </SelectItem>
+                        </>
+                      ) : (
+                        <>
+                          <SelectItem value="libx265" disabled={!encoders.libx265}>
+                            H.265 logiciel (libx265)
+                          </SelectItem>
+                          <SelectItem
+                            value="hevc_vaapi"
+                            disabled={!encoders.hevc_vaapi || !vaapi}
+                          >
+                            H.265 VAAPI (GPU)
+                          </SelectItem>
+                          <SelectItem value="hevc_qsv" disabled={!encoders.hevc_qsv}>
+                            H.265 Quick Sync (GPU)
+                          </SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -217,39 +262,56 @@ export function CompressionPanel({
                   </Select>
                 </div>
 
-                <div className="space-y-2 sm:col-span-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <Label>Preset SVT-AV1</Label>
-                    <span className="font-mono text-primary">{settings.preset}</span>
+                {!hardwareEncoder && (
+                  <div className="space-y-2 sm:col-span-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <Label>{settings.codec === "hevc" ? "Preset x265" : "Preset SVT-AV1"}</Label>
+                      <span className="font-mono text-primary">{settings.preset}</span>
+                    </div>
+                    <Slider
+                      value={[settings.preset]}
+                      onValueChange={([value]) => patch({ preset: value })}
+                      min={0}
+                      max={13}
+                      step={1}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      {settings.codec === "hevc"
+                        ? "0 = placebo (très lent) · 8-9 = rapide · 13 = ultrafast."
+                        : "0 = meilleure qualité/lent · 13 = très rapide."}
+                    </p>
                   </div>
-                  <Slider
-                    value={[settings.preset]}
-                    onValueChange={([value]) => patch({ preset: value })}
-                    min={0}
-                    max={13}
-                    step={1}
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    0 = meilleure qualité/lent · 13 = très rapide.
-                  </p>
-                </div>
+                )}
 
                 <div className="space-y-2 sm:col-span-2">
                   <div className="flex items-center justify-between text-xs">
-                    <Label>CRF (qualité)</Label>
+                    <Label>{qualityLabel}</Label>
                     <span className="font-mono text-primary">{settings.crf}</span>
                   </div>
                   <Slider
                     value={[settings.crf]}
                     onValueChange={([value]) => patch({ crf: value })}
                     min={0}
-                    max={63}
+                    max={qualityMax}
                     step={1}
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Plus bas = meilleure qualité et fichier plus gros.
+                    {hardwareEncoder
+                      ? "QP matériel : plus bas = meilleure qualité, fichiers plus gros."
+                      : "Plus bas = meilleure qualité et fichier plus gros."}
                   </p>
                 </div>
+
+                {hardwareEncoder && (
+                  <Alert variant="warning" className="sm:col-span-2 py-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-[11px]">
+                      Encodage matériel : plus rapide, mais à qualité égale les fichiers sont
+                      souvent 30 à 50 % plus gros qu'en logiciel. Utile pour la vitesse, pas pour
+                      gagner de la place.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="space-y-2">
                   <Label>Profondeur couleur</Label>

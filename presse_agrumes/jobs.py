@@ -605,11 +605,11 @@ class JobManager:
 
         hardware_info = hardware.detect_hardware()
         encoder = media.choose_encoder(
-            settings.encoder, hardware_info["ffmpeg"]["encoders"]
+            settings.encoder, hardware_info["ffmpeg"]["encoders"], settings.codec
         )
         if encoder is None:
             raise RuntimeError(
-                "Aucun encodeur AV1 disponible dans ffmpeg. "
+                f"Aucun encodeur {settings.codec.upper()} disponible dans ffmpeg. "
                 "Installez un ffmpeg avec libsvtav1."
             )
         if encoder == "av1_vaapi" and not hardware_info["gpu"]["vaapi_available"]:
@@ -865,7 +865,9 @@ class JobManager:
         try:
             hardware_info = hardware.detect_hardware()
             encoder = media.choose_encoder(
-                request.settings.encoder, hardware_info["ffmpeg"]["encoders"]
+                request.settings.encoder,
+                hardware_info["ffmpeg"]["encoders"],
+                request.settings.codec,
             )
             if encoder is None:
                 return
@@ -1431,14 +1433,24 @@ class JobManager:
 
             hardware_info = hardware.detect_hardware()
             encoder = media.choose_encoder(
-                request.settings.encoder, hardware_info["ffmpeg"]["encoders"]
+                request.settings.encoder,
+                hardware_info["ffmpeg"]["encoders"],
+                request.settings.codec,
             )
             if encoder is None:
-                raise RuntimeError("Aucun encodeur AV1 disponible.")
-            if encoder == "av1_vaapi" and not hardware_info["gpu"]["vaapi_available"]:
-                encoder = media.choose_encoder("auto", hardware_info["ffmpeg"]["encoders"])
+                raise RuntimeError(
+                    f"Aucun encodeur {request.settings.codec.upper()} disponible."
+                )
+            if encoder.endswith("_vaapi") and not hardware_info["gpu"]["vaapi_available"]:
+                encoder = media.choose_encoder(
+                    "auto",
+                    hardware_info["ffmpeg"]["encoders"],
+                    request.settings.codec,
+                )
             if encoder is None:
-                raise RuntimeError("Aucun encodeur AV1 disponible.")
+                raise RuntimeError(
+                    f"Aucun encodeur {request.settings.codec.upper()} disponible."
+                )
 
             logical = hardware_info["cpu"]["logical_cores"]
             threads = max(1, round(logical * 0.7))
@@ -1562,6 +1574,14 @@ class JobManager:
 
     # -- benchmark --------------------------------------------------------
     def run_benchmark(self, request: BenchmarkRequest) -> dict:
+        if request.path and request.settings:
+            return hardware.benchmark_real(
+                request.path,
+                request.settings,
+                request.threads,
+                force=request.force,
+                samples=request.samples,
+            )
         return hardware.benchmark(
             request.encoder, request.preset, request.threads, force=request.force
         )

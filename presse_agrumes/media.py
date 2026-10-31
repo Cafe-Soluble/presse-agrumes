@@ -539,6 +539,11 @@ def available_encoders(force: bool = False) -> dict[str, bool]:
         "av1_vaapi": False,
         "av1_nvenc": False,
         "av1_qsv": False,
+        "libx265": False,
+        "hevc_vaapi": False,
+        "hevc_qsv": False,
+        "hevc_nvenc": False,
+        "h264_vaapi": False,
         "libx264": False,
     }
     binary = config.ffmpeg_bin()
@@ -559,10 +564,17 @@ def available_encoders(force: bool = False) -> dict[str, bool]:
     return result
 
 
-def choose_encoder(requested: str, available: dict[str, bool]) -> str | None:
+def choose_encoder(
+    requested: str, available: dict[str, bool], codec: str = "av1"
+) -> str | None:
     if requested != "auto":
         return requested if available.get(requested) else None
-    for candidate in ("libsvtav1", "libaom-av1", "av1_vaapi"):
+    candidates = (
+        ("libsvtav1", "libaom-av1", "av1_vaapi")
+        if codec != "hevc"
+        else ("libx265", "hevc_vaapi", "hevc_qsv")
+    )
+    for candidate in candidates:
         if available.get(candidate):
             return candidate
     return None
@@ -575,6 +587,10 @@ def encoder_display_name(encoder: str | None) -> str:
         "av1_vaapi": "VAAPI (GPU)",
         "av1_nvenc": "NVENC (GPU)",
         "av1_qsv": "Quick Sync (GPU)",
+        "libx265": "H.265 / libx265 (CPU)",
+        "hevc_vaapi": "H.265 VAAPI (GPU)",
+        "hevc_qsv": "H.265 Quick Sync (GPU)",
+        "hevc_nvenc": "H.265 NVENC (GPU)",
     }.get(encoder or "", encoder or "inconnu")
 
 
@@ -616,6 +632,59 @@ def output_filename(
     return f"{stem}.{cleaned}{container_extension(settings.container)}"
 
 
+
+X265_PRESETS = [
+    "placebo", "veryslow", "slower", "slow", "medium", "medium",
+    "fast", "faster", "veryfast", "superfast", "ultrafast", "ultrafast",
+    "ultrafast", "ultrafast",
+]
+QSV_PRESETS = [
+    "veryslow", "veryslow", "slower", "slow", "medium", "medium",
+    "fast", "faster", "veryfast", "veryfast", "veryfast", "veryfast",
+    "veryfast", "veryfast",
+]
+
+
+def x265_preset_name(preset: int) -> str:
+    return X265_PRESETS[min(13, max(0, int(preset)))]
+
+
+def qsv_preset_name(preset: int) -> str:
+    return QSV_PRESETS[min(13, max(0, int(preset)))]
+
+
+def video_encode_args(settings, encoder: str, threads: int) -> list[str]:
+    """Arguments vidéo communs à la compression, au test et au benchmark."""
+    if encoder == "libsvtav1":
+        return ["-c:v", "libsvtav1", "-preset", str(settings.preset),
+                "-crf", str(settings.crf), "-pix_fmt", settings.pixel_format,
+                "-svtav1-params", f"lp={max(1, threads)}"]
+    if encoder == "libaom-av1":
+        aom_cpu = min(8, max(0, round(settings.preset * 8 / 13)))
+        return ["-c:v", "libaom-av1", "-cpu-used", str(aom_cpu),
+                "-crf", str(settings.crf), "-b:v", "0",
+                "-pix_fmt", settings.pixel_format, "-threads", str(max(1, threads))]
+    if encoder == "av1_vaapi":
+        return ["-vaapi_device", "/dev/dri/renderD128",
+                "-vf", "format=nv12,hwupload", "-c:v", "av1_vaapi",
+                "-qp", str(min(255, max(0, round(settings.crf * 255 / 63))))]
+    if encoder == "libx265":
+        crf = min(51, max(0, int(settings.crf)))
+        return ["-c:v", "libx265", "-preset", x265_preset_name(settings.preset),
+                "-crf", str(crf), "-pix_fmt", settings.pixel_format]
+    if encoder == "hevc_vaapi":
+        qp = min(51, max(0, int(settings.crf)))
+        pixel = "p010" if settings.pixel_format == "yuv420p10le" else "nv12"
+        return ["-vaapi_device", "/dev/dri/renderD128",
+                "-vf", f"format={pixel},hwupload", "-c:v", "hevc_vaapi",
+                "-qp", str(qp)]
+    if encoder == "hevc_qsv":
+        q = min(51, max(1, int(settings.crf)))
+        return ["-c:v", "hevc_qsv", "-global_quality", str(q),
+                "-preset", qsv_preset_name(settings.preset)]
+    raise RuntimeError(f"Encodeur non pris en charge : {encoder}")
+
+
 def build_compress_command(
     input_path: Path,
     output_path: Path,
@@ -642,23 +711,9 @@ def build_compress_command(
         "-map_metadata", "0",
     ]
 
-    if encoder == "libsvtav1":
-        cmd += ["-c:v", "libsvtav1", "-preset", str(settings.preset),
-                "-crf", str(settings.crf), "-pix_fmt", settings.pixel_format,
-                "-svtav1-params", f"lp={max(1, threads)}"]
-    elif encoder == "libaom-av1":
-        aom_cpu = min(8, max(0, round(settings.preset * 8 / 13)))
-        cmd += ["-c:v", "libaom-av1", "-cpu-used", str(aom_cpu),
-                "-crf", str(settings.crf), "-b:v", "0",
-                "-pix_fmt", settings.pixel_format, "-threads", str(max(1, threads))]
-    elif encoder == "av1_vaapi":
-        device = "/dev/dri/renderD128"
-        cmd += ["-vaapi_device", device,
-                "-vf", f"format=nv12,hwupload",
-                "-c:v", "av1_vaapi",
-                "-qp", str(min(255, max(0, round(settings.crf * 255 / 63))))]
-    else:
-        raise RuntimeError(f"Encodeur AV1 non pris en charge : {encoder}")
+    cmd += video_encode_args(settings, encoder, threads)
+    if settings.codec == "hevc" and container == "mp4":
+        cmd += ["-tag:v", "hvc1"]
 
     # Sous-titres : copiés uniquement vers MKV (le MP4/WebM demanderait une
     # conversion supplémentaire, hors périmètre de la v1).
@@ -737,21 +792,9 @@ def build_compress_test_command(
         "-map", "0:v:0", "-map", "0:a?",
         "-map_metadata", "0",
     ]
-    if encoder == "libsvtav1":
-        cmd += ["-c:v", "libsvtav1", "-preset", str(settings.preset),
-                "-crf", str(settings.crf), "-pix_fmt", settings.pixel_format,
-                "-svtav1-params", f"lp={max(1, threads)}"]
-    elif encoder == "libaom-av1":
-        aom_cpu = min(8, max(0, round(settings.preset * 8 / 13)))
-        cmd += ["-c:v", "libaom-av1", "-cpu-used", str(aom_cpu),
-                "-crf", str(settings.crf), "-b:v", "0",
-                "-pix_fmt", settings.pixel_format, "-threads", str(max(1, threads))]
-    elif encoder == "av1_vaapi":
-        cmd += ["-vaapi_device", "/dev/dri/renderD128",
-                "-vf", "format=nv12,hwupload", "-c:v", "av1_vaapi",
-                "-qp", str(min(255, max(0, round(settings.crf * 255 / 63))))]
-    else:
-        raise RuntimeError(f"Encodeur AV1 non pris en charge : {encoder}")
+    cmd += video_encode_args(settings, encoder, threads)
+    if settings.codec == "hevc":
+        cmd += ["-tag:v", "hvc1"]
 
     if settings.audio_mode == "none":
         cmd += ["-an"]

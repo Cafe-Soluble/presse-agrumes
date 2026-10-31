@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.0] - 2026-10-31
+
+### Ajouté
+
+- **Codec H.265 / HEVC** : choix AV1 ou H.265, avec libx265 (logiciel),
+  hevc_vaapi et hevc_qsv (matériel si réellement utilisable). Les libellés et
+  plages s'adaptent (CRF logiciel, QP matériel), et un avertissement rappelle
+  que l'encodage matériel produit des fichiers plus gros.
+- **Benchmark sur fichier réel** : le bouton « Calibrer » encode 3 extraits
+  répartis sur la durée du fichier (20 %, 50 %, 80 %), avec les réglages réels,
+  puis retient la vitesse médiane, le minimum et le maximum. La taille finale
+  estimée est calculée à partir du débit des extraits. Le résultat est mis en
+  cache.
+- **Diagnostic matériel VAAPI** : tableau par codec (H.264, H.265 8/10 bits,
+  AV1, VP9, MPEG-2, VC-1) avec décodage/encodage réels selon vainfo, présence de
+  l'encodeur ffmpeg, test réel d'encodage, et cause explicite en cas d'échec
+  (/dev/dri absent, permissions, driver, profil non supporté).
+
+### Modifié
+
+- L'ETA initiale utilise le benchmark réel quand il existe, au lieu d'une mire
+  synthétique de 4 secondes.
+- Le cache benchmark distingue encodeur, preset, CRF, threads et fichier réel.
+
 ## [0.9.0] - 2026-10-31
 
 ### Ajouté

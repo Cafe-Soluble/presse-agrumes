@@ -121,7 +121,15 @@ export const api = {
   jobs: (limit = 50) =>
     request<{ jobs: import("./types").JobSnapshot[] }>(`/api/jobs?limit=${limit}`),
   listJobs: (limit = 30) => request<{ jobs: JobSnapshot[] }>(`/api/jobs?limit=${limit}`),
-  benchmark: (payload: { encoder: string; preset: number; force?: boolean }) =>
+  benchmark: (payload: {
+    encoder: string;
+    preset: number;
+    force?: boolean;
+    path?: string;
+    settings?: import("./types").CompressionSettings;
+    samples?: number;
+    threads?: number;
+  }) =>
     request<{ benchmark: Benchmark; hardware: Hardware }>("/api/hardware/benchmark", {
       method: "POST",
       body: JSON.stringify(payload),

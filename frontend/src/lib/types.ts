@@ -311,7 +311,31 @@ export interface Hardware {
     mhz?: number | null;
   };
   memory: { total_bytes?: number | null; available_bytes?: number | null };
-  gpu: { devices: string[]; vaapi_available: boolean };
+  gpu: {
+    devices: string[];
+    vaapi_available: boolean;
+    vaapi?: {
+      device: string;
+      accessible: boolean;
+      driver: string | null;
+      vainfo_error: string | null;
+      reason: string | null;
+      tested: boolean;
+      decode_ok: boolean | null;
+      decode_error: string | null;
+      codecs: {
+        codec: string;
+        label: string;
+        decode: boolean;
+        encode: boolean;
+        compiled: boolean;
+        tested_encode: boolean | null;
+        tested_decode: boolean | null;
+        usable_encode: boolean;
+        error: string | null;
+      }[];
+    };
+  };
   ffmpeg: {
     path: string | null;
     ffprobe_path: string | null;
@@ -326,15 +350,25 @@ export interface Hardware {
 
 export interface Benchmark {
   encoder: string;
+  codec?: string;
   preset: number;
+  crf?: number;
   threads: number;
   fps: number;
   speed: number;
-  elapsed_sec: number;
-  sample_duration_sec: number;
+  elapsed_sec?: number;
+  sample_duration_sec?: number;
   tested_at: string;
   cached?: boolean;
   source?: string;
+  speed_min?: number;
+  speed_max?: number;
+  fps_min?: number;
+  fps_max?: number;
+  samples?: number;
+  bytes_per_second?: number;
+  estimated_size_bytes?: number;
+  real_file?: boolean;
 }
 
 export interface QualityPreset {
@@ -346,7 +380,15 @@ export interface QualityPreset {
 }
 
 export interface CompressionSettings {
-  encoder: "auto" | "libsvtav1" | "libaom-av1" | "av1_vaapi";
+  codec: "av1" | "hevc";
+  encoder:
+    | "auto"
+    | "libsvtav1"
+    | "libaom-av1"
+    | "av1_vaapi"
+    | "libx265"
+    | "hevc_vaapi"
+    | "hevc_qsv";
   preset: number;
   crf: number;
   pixel_format: "yuv420p" | "yuv420p10le";

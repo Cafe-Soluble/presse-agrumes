@@ -4,7 +4,7 @@ L'image est publiée sur **GitHub Container Registry (GHCR)** :
 
 ```text
 ghcr.io/cafe-soluble/presse-agrumes:latest
-ghcr.io/cafe-soluble/presse-agrumes:0.9.0
+ghcr.io/cafe-soluble/presse-agrumes:0.10.0
 ghcr.io/cafe-soluble/presse-agrumes:0.7
 ```
 
@@ -112,7 +112,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.9.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.10.0
 
 docker logs presse-agrumes | grep -A6 "première configuration"
 ```
@@ -127,7 +127,7 @@ L'image peut aussi être publiée en miroir sur Docker Hub pour obtenir la
 commande la plus courte possible :
 
 ```text
-cafesoluble/presse-agrumes:0.9.0
+cafesoluble/presse-agrumes:0.10.0
 ```
 
 Docker Hub n'accepte que des lettres minuscules et des chiffres dans un
@@ -147,7 +147,7 @@ Après leur ajout, pousse un nouveau tag (`v0.7.2`, `v0.8.0`…) pour publier le
 tags de version, puis :
 
 ```bash
-docker pull cafesoluble/presse-agrumes:0.9.0
+docker pull cafesoluble/presse-agrumes:0.10.0
 ```
 
 Les tags publiés sont `<version>`, `<major>.<minor>`, la branche, le SHA court
@@ -316,7 +316,7 @@ suivant évite un décalage UTC :
 Le Compose de la release épingle une version précise :
 
 ```yaml
-image: ghcr.io/cafe-soluble/presse-agrumes:0.9.0
+image: ghcr.io/cafe-soluble/presse-agrumes:0.10.0
 ```
 
 Pour monter de version, remplace ce numéro par celui de la nouvelle release

@@ -41,6 +41,9 @@ Presse-Agrumes est un outil web auto-hébergé pensé pour les NAS et les serveu
 - **Planification horaire** : choisissez des plages (jours + heures) ; hors plage, le job se met en pause et reprend automatiquement.
 - **Bannière de tâche active** en haut de toutes les pages : progression, ETA, vitesse, pause/reprise et accès au suivi, même après fermeture du navigateur.
 - **Estimation matérielle** : détection CPU/RAM/GPU, benchmark ffmpeg réel, ETA selon le pourcentage de ressources alloué et le nombre d'encodages simultanés.
+- **Codec H.265** : libx265 logiciel, hevc_vaapi ou hevc_qsv matériel, avec réglages adaptés (CRF, QP, presets).
+- **Benchmark sur fichier réel** : 3 extraits répartis sur la durée, vitesse médiane, fourchette et taille estimée.
+- **Diagnostic VAAPI** : tableau par codec (décodage/encodage), distinction compilé/Utilisable, causes des échecs.
 - **Espace disque** : espace libre visible, contrôle avant lancement, blocage si la sortie estimée ne tient pas.
 - **Historique des compressions** : jobs terminés, annulés ou en erreur, avec gain réel.
 - **Création de dossiers** : directement dans l'explorateur (corbeille, sortie, séries).
@@ -259,7 +262,7 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.9.0
+  ghcr.io/cafe-soluble/presse-agrumes:0.10.0
 
 docker logs presse-agrumes --tail=50
 ```
@@ -570,7 +573,8 @@ démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 (changement de mot de passe, annulation des analyses, guide Compose pas-à-pas),
 `v0.8.1` (gain ajusté au CRF choisi), `v0.8.2` (analyse active conservée
 entre les vues), `v0.9.0` (espace disque, historique des compressions,
-création de dossiers, nettoyage des noms de codecs).
+création de dossiers, nettoyage des noms de codecs), `v0.10.0` (H.265,
+benchmark sur fichier réel, diagnostic VAAPI).
 
 ## Dépannage
 

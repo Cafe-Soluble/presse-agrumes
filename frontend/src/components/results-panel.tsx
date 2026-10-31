@@ -47,7 +47,7 @@ interface ResultsPanelProps {
   onTest: (item: ScanItem) => void;
   onDeleteItem: (item: ScanItem) => void;
   onDeleteError: (path: string) => void;
-  onCalibrate: () => void;
+  onCalibrate: (samplePath?: string) => void;
   calibrating?: boolean;
   onRescan: () => void;
   hardware?: Hardware;
@@ -115,6 +115,14 @@ export function ResultsPanel({
   }, [scan, filter, sort, search, settings.crf]);
 
   const visible = displayLimit === "all" ? filtered : filtered.slice(0, displayLimit);
+  const calibrationSample = useMemo(() => {
+    const pool = scan.items.filter((item) => selection.has(item.id));
+    for (const item of [...pool, ...scan.items]) {
+      if (item.kind === "series" && item.episodes?.length) return item.episodes[0].path;
+      if (item.kind === "file") return item.path;
+    }
+    return undefined;
+  }, [scan.items, selection]);
   const stats = selectionStats(scan, selection, hardware, settings, resourcePercent, concurrency);
   const summary = scan.summary;
 
@@ -281,7 +289,7 @@ export function ResultsPanel({
                   variant="ghost"
                   size="sm"
                   className="h-6 px-2 text-[10px] text-primary"
-                  onClick={onCalibrate}
+                  onClick={() => onCalibrate(calibrationSample)}
                   disabled={calibrating}
                   title="Mesurer la vitesse réelle de ce preset sur cette machine (mire 1080p, quelques secondes)"
                 >

@@ -35,10 +35,20 @@ const FALLBACK_FPS: Record<string, Record<number, number>> = {
   libsvtav1: { 0: 2, 2: 6, 4: 13, 6: 24, 8: 42, 10: 70, 12: 115, 13: 140 },
   "libaom-av1": { 0: 1, 2: 2.5, 4: 5, 6: 7, 8: 10, 10: 13, 12: 16, 13: 18 },
   av1_vaapi: { 0: 40, 2: 60, 4: 80, 6: 100, 8: 120, 10: 140, 12: 160, 13: 180 },
+  libx265: { 0: 4, 2: 9, 4: 18, 6: 30, 8: 45, 10: 75, 12: 110, 13: 140 },
+  hevc_vaapi: { 0: 40, 2: 60, 4: 80, 6: 100, 8: 120, 10: 140, 12: 160, 13: 180 },
+  hevc_qsv: { 0: 40, 2: 60, 4: 80, 6: 100, 8: 120, 10: 140, 12: 160, 13: 180 },
 };
 
 export function effectiveEncoder(hardware: Hardware | undefined, settings: CompressionSettings) {
   if (settings.encoder !== "auto") return settings.encoder;
+  if (settings.codec === "hevc") {
+    const encoders = hardware?.ffmpeg.encoders ?? {};
+    if (encoders.libx265) return "libx265";
+    if (encoders.hevc_vaapi) return "hevc_vaapi";
+    if (encoders.hevc_qsv) return "hevc_qsv";
+    return "libx265";
+  }
   return hardware?.ffmpeg.recommended_encoder ?? "libsvtav1";
 }
 
