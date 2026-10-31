@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.8.0] — 2026-10-31
+
+### Ajouté
+
+- **Changement de mot de passe depuis l'interface** : bouton clé dans l'en-tête,
+  route `POST /api/auth/password`, écriture dans `config.toml` sans redémarrage.
+  L'ancien mot de passe est exigé, le nouveau doit faire 8 caractères minimum.
+- **Annulation des analyses** : bouton « Annuler » dans la bannière des jobs
+  actifs pour les scans et les tests qualité (l'API `cancel` existait déjà, elle
+  est maintenant accessible sans ouvrir le panneau de progression).
+
+### Corrigé
+
+- **Explorateur de dossiers** : plus de requête sur `/` avant le chargement des
+  racines (message « Accès refusé à / : hors des racines autorisées »). Un ancien
+  chemin `/` mémorisé est ignoré si `/` n'est pas autorisé.
+- **Assistant de premier démarrage** : les racines vides (`/mnt`, `/srv`…)
+  ne sont plus proposées quand un média est déjà monté ; elles restent visibles
+  uniquement si aucun média n'est trouvé, avec l'explication.
+
+### Modifié
+
+- **README** : guide Docker Compose pas-à-pas (téléchargement, 3 valeurs,
+  chemins hôte/conteneur, démarrage, mise à jour, dépannage), inspiré des guides
+  d'auto-hébergement grand public.
+- Documentation API et compose mise à jour (version `0.8.0`).
+
 ## [0.7.3] — 2026-10-31
 
 ### Modifié

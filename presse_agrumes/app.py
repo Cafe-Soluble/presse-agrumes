@@ -31,6 +31,7 @@ from .models import (
     BenchmarkRequest,
     CompressRequest,
     DeleteScanItems,
+    PasswordChange,
     PreflightRequest,
     ScanRequest,
     SetupRequest,
@@ -211,6 +212,25 @@ npm run build</pre>
                 "Le test qualité force un MP4 AAC pour la lecture navigateur.",
             ],
         }
+
+    @app.post("/api/auth/password")
+    async def change_password(request: PasswordChange):
+        if not config.AUTH_ENABLED:
+            raise HTTPException(status_code=400, detail="Authentification désactivée.")
+        if not hmac.compare_digest(request.current_password, config.AUTH_PASSWORD):
+            raise HTTPException(status_code=400, detail="Mot de passe actuel incorrect.")
+        if hmac.compare_digest(request.new_password, config.AUTH_PASSWORD):
+            raise HTTPException(
+                status_code=400,
+                detail="Le nouveau mot de passe doit être différent de l'actuel.",
+            )
+        if request.new_password.strip().lower() in config.DEFAULT_PASSWORD_VALUES:
+            raise HTTPException(status_code=400, detail="Ce mot de passe est trop courant.")
+        try:
+            await asyncio.to_thread(config.update_password, request.new_password)
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+        return {"changed": True}
 
     @app.get("/api/setup")
     async def get_setup():

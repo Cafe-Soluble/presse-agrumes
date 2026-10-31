@@ -45,22 +45,32 @@ export function BrowseDialog({
   onMarkSeries,
 }: BrowseDialogProps) {
   const mountsQuery = useMounts();
-  // Sans chemin initial, on ouvre sur une racine réellement autorisée (en
-  // Docker, « / » est hors périmètre et renverrait une erreur).
-  const defaultPath = useMemo(() => {
-    const roots = mountsQuery.data?.roots ?? [];
-    return roots.find((root) => !root.empty)?.path ?? roots[0]?.path ?? "/";
-  }, [mountsQuery.data]);
+  const roots = mountsQuery.data?.roots ?? [];
 
-  const [path, setPath] = useState(initialPath || defaultPath);
-  const [input, setInput] = useState(initialPath || defaultPath);
+  // Sans chemin initial, on ouvre sur une racine réellement autorisée. En
+  // Docker, « / » est hors périmètre : on ne le propose jamais par défaut.
+  const defaultPath = useMemo(
+    () => roots.find((root) => !root.empty)?.path ?? roots[0]?.path ?? "",
+    [roots],
+  );
+
+  // Un ancien chemin « / » mémorisé (installation native) est ignoré si « / »
+  // n'est pas une racine autorisée sur ce serveur.
+  const startPath = useMemo(() => {
+    if (initialPath && (initialPath !== "/" || roots.some((root) => root.path === "/"))) {
+      return initialPath;
+    }
+    return defaultPath;
+  }, [initialPath, defaultPath, roots]);
+
+  const [path, setPath] = useState(startPath);
+  const [input, setInput] = useState(startPath);
 
   useEffect(() => {
     if (!open) return;
-    const start = initialPath || defaultPath;
-    setPath(start);
-    setInput(start);
-  }, [open, initialPath, defaultPath]);
+    setPath(startPath);
+    setInput(startPath);
+  }, [open, startPath]);
 
   const browse = useQuery({
     queryKey: ["browse", path],
@@ -154,6 +164,14 @@ export function BrowseDialog({
 
         <ScrollArea className="h-[44vh] min-h-[240px] rounded-lg border border-border/60 bg-background/40">
           <div className="space-y-0.5 p-2">
+            {!path && mountsQuery.isLoading && (
+              <p className="p-4 text-center text-sm text-muted-foreground">Chargement des racines…</p>
+            )}
+            {!path && mountsQuery.isSuccess && (
+              <p className="p-4 text-center text-sm text-muted-foreground">
+                Aucune racine autorisée accessible. Montez un dossier média puis rechargez.
+              </p>
+            )}
             {browse.isLoading && (
               <p className="p-4 text-center text-sm text-muted-foreground">Chargement…</p>
             )}

@@ -88,6 +88,7 @@ test, ffmpeg est un build statique dans `~/.local/bin` (SVT-AV1 + libaom).
 | `components/test-dialog.tsx` | Test qualité et comparaison vidéo côte à côte. |
 | `components/browse-dialog.tsx` | Navigateur de dossiers (racine, séries, sortie, corbeille). |
 | `components/setup-dialog.tsx` | Assistant de premier démarrage : choix du dossier média (mémorisé côté serveur). |
+| `components/password-dialog.tsx` | Changement du mot de passe (écrit dans `config.toml`, sans redémarrage). |
 | `components/page.tsx`, `layout/app-shell.tsx` | Mise en page, header, navigation. |
 | `components/ui/*` | Composants shadcn/ui (Button, Card, Dialog, Select, Slider…). |
 | `lib/api.ts` | Client API typé. Toute nouvelle route doit y être ajoutée. |

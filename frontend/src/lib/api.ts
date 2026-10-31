@@ -51,6 +51,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ media_root: mediaRoot }),
     }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ changed: boolean }>("/api/auth/password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
   browse: (path: string) =>
     request<BrowseData>(`/api/browse?path=${encodeURIComponent(path)}`),
   startScan: (root: string, options: ScanOptions) =>

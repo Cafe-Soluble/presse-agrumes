@@ -30,12 +30,19 @@ export function SetupDialog({ open, state, initialPath, onComplete, onSkip }: Se
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const allRoots = useMemo(() => state?.roots ?? [], [state?.roots]);
+  const nonEmptyRoots = useMemo(
+    () => allRoots.filter((root) => !root.empty),
+    [allRoots],
+  );
+  // Ne propose que les racines qui contiennent réellement quelque chose.
+  // Si tout est vide, on affiche quand même les racines pour expliquer.
   const roots = useMemo(() => {
-    const list = [...(state?.roots ?? [])];
-    return list.sort((a, b) => Number(a.empty) - Number(b.empty) || a.path.localeCompare(b.path));
-  }, [state?.roots]);
+    const list = [...(nonEmptyRoots.length > 0 ? nonEmptyRoots : allRoots)];
+    return list.sort((a, b) => a.path.localeCompare(b.path));
+  }, [allRoots, nonEmptyRoots]);
 
-  const noMedia = roots.every((root) => root.empty);
+  const noMedia = allRoots.length === 0 || nonEmptyRoots.length === 0;
 
   useEffect(() => {
     if (!open) return;

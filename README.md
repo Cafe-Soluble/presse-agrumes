@@ -144,44 +144,52 @@ python3 -m venv .venv
 (cd frontend && npm install && npm run build)
 ```
 
-### Docker (GHCR)
+### Docker Compose (recommandé)
 
-C'est le canal recommandé pour un NAS. L'image est publiée sur
-**GitHub Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en
-`amd64` et `arm64`. **Pas besoin de git**, et aucun `config.toml` à créer :
-la configuration est générée au premier démarrage.
+C'est la méthode recommandée pour un NAS. L'image est publiée sur **GitHub
+Container Registry** (`ghcr.io/cafe-soluble/presse-agrumes`), en `amd64` et
+`arm64`, sans compte ni login. **Un seul fichier à télécharger**, et
+`config.toml` est créé automatiquement au premier démarrage : il n'y a pas de
+`.env`.
 
-#### Installation recommandée (Docker Compose)
+#### Étape 1 — Télécharger le fichier Compose
 
 ```bash
 mkdir -p presse-agrumes/data
 cd presse-agrumes
 
-# Le conteneur tourne avec l'UID/GID de « user: » (1000 par défaut).
-# Le dossier ./data doit lui appartenir, sinon le conteneur s'arrête.
-sudo chown -R 1000:1000 data
-
 curl -fsSLO https://github.com/Cafe-Soluble/presse-agrumes/releases/latest/download/docker-compose.yml
 ```
 
-Ouvre `docker-compose.yml` et adapte les **3 valeurs marquées « À ADAPTER »** :
+Le fichier est joint à chaque release : il correspond exactement à la version
+de l'image publiée. Tu peux aussi le télécharger depuis ton navigateur.
 
-| Ligne | Format | Signification |
+#### Étape 2 — Renseigner les 3 valeurs
+
+Ouvre `docker-compose.yml`. Seules les lignes marquées **« À ADAPTER »**
+doivent changer :
+
+| Valeur | Exemple | Signification |
 | --- | --- | --- |
-| `user: "1000:1000"` | `UID:GID` | propriétaire de `./data` et des médias (`id -u`, `id -g`) |
-| `- "8473:8473"` | `port navigateur:port interne` | à gauche le port sur le NAS ; à droite 8473, ne pas changer |
-| `- /volume1/media:/media` | `hôte:conteneur` | à gauche le dossier média **réel sur le NAS** (il doit exister) ; à droite `/media`, ne pas changer |
+| `user:` | `"1026:100"` | UID:GID qui possède `./data` et les médias (`id -u`, `id -g`). |
+| `ports:` | `"8473:8473"` | `port navigateur:port interne`. À droite, 8473 ne change pas. |
+| volume média | `- /srv:/srv` | `hôte:conteneur`. À gauche ton dossier réel, à droite le chemin vu par l'app. |
 
 Deux façons de monter les médias :
 
 - **dossier exact** : `- /volume1/media:/media` (ou `/srv/media:/media` sur OMV) ;
 - **racine du partage** : `- /srv:/srv` (OMV), `- /volume1:/volume1` (Synology),
-  `- /mnt:/mnt` (Unraid). Tu choisis ensuite le sous-dossier dans l'assistant,
-  sans retoucher le Compose. Ne monte jamais `/`.
+  `- /mnt:/mnt` (Unraid). L'assistant permet ensuite de choisir le sous-dossier,
+  sans retoucher le Compose.
 
-Vérifie que le chemin hôte existe avant de démarrer : `ls -ld /srv`.
+Vérifie que le chemin hôte existe (`ls -ld /srv`) et **ne monte jamais `/`**.
+Le dossier `./data` doit appartenir à l'UID/GID de `user:` :
 
-Puis :
+```bash
+sudo chown -R 1000:1000 data    # remplace par les valeurs de user:
+```
+
+#### Étape 3 — Démarrer
 
 ```bash
 docker compose up -d
@@ -189,21 +197,55 @@ docker compose ps
 docker compose logs --tail=50
 ```
 
-La ligne « première configuration » n'apparaît qu'au premier démarrage. Si elle
-est absente et que `docker compose ps -a` affiche `Exited (1)`, lis les logs :
-c'est presque toujours un problème de permissions sur `./data` (voir la section
-Dépannage).
+Au premier démarrage, les logs affichent l'utilisateur, le mot de passe généré
+et l'URL d'accès :
 
-Le mot de passe généré n'est affiché qu'une fois. Ouvre ensuite
-`http://<ip-du-nas>:8473` avec l'utilisateur `agrumes`.
+```text
+Utilisateur   : agrumes
+Mot de passe  : 9cebf22c48579019
+Accès web     : http://<IP-du-NAS>:8473
+```
 
-- Configuration : `./data/config.toml` (dans le dossier du projet).
-- Au premier lancement, un assistant propose de choisir le dossier média
-  (ou « Plus tard »).
-- Pour changer le mot de passe ou ajouter des dossiers, édite
-  `./data/config.toml` puis `docker compose restart`.
-- VAAPI, fuseau horaire et permissions : lignes commentées du Compose et
-  [`docs/DOCKER.md`](docs/DOCKER.md).
+Le mot de passe n'est affiché qu'une fois. Il est aussi lisible dans
+`./data/config.toml`.
+
+> Utilise bien `docker compose` (plugin v2), pas `docker-compose`. Si tu obtiens
+> `unknown shorthand flag: 'd' in -d`, installe Docker Engine depuis le dépôt
+> officiel de ta distribution.
+
+#### Étape 4 — Se connecter
+
+Ouvre `http://<ip-du-nas>:8473` avec `agrumes` et le mot de passe affiché.
+
+- L'assistant propose de choisir le dossier média (ou « Plus tard »).
+- Le bouton **clé** dans l'en-tête permet de changer le mot de passe ; il est
+  écrit dans `./data/config.toml` et prend effet immédiatement.
+- VAAPI : décommente `devices` / `group_add` dans le Compose.
+- Fuseau horaire : `/etc/localtime` est déjà monté.
+
+#### Mettre à jour
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Le Compose de la release épingle une version (`image: ...:0.8.0`). Pour monter de
+version, remplace ce numéro ou reprends le Compose de la nouvelle release. Les
+données restent dans `./data` ; sauvegarde ce dossier avant toute mise à jour.
+
+#### Dépannage rapide
+
+| Symptôme | Solution |
+| --- | --- |
+| Aucune ligne « première configuration » | `docker compose ps -a` puis `docker compose logs --tail=50` ; souvent `./data` non inscriptible → `sudo chown -R 1000:1000 data`. |
+| `Accès refusé à /` | un ancien chemin `/` est mémorisé ; choisis `/media`, `/srv`… dans l'explorateur. |
+| Le port 8473 est occupé | change le port hôte : `-p 8480:8473`. |
+| Le dossier média est vide | le chemin hôte n'existe pas ou est mal orthographié ; Docker crée alors un dossier vide. |
+| Conteneur `unhealthy` | vérifie `./data/config.toml` et que le port interne correspond au mapping. |
+
+Guide complet (Synology, Unraid, OMV, VAAPI, permissions) :
+[`docs/DOCKER.md`](docs/DOCKER.md).
 
 #### Variante sans Compose (`docker run`)
 
@@ -213,14 +255,13 @@ docker run -d --name presse-agrumes \
   -p 8473:8473 \
   -v /volume1/media:/media \
   -v presse-agrumes:/data \
-  ghcr.io/cafe-soluble/presse-agrumes:0.7.3
+  ghcr.io/cafe-soluble/presse-agrumes:0.8.0
 
-docker logs presse-agrumes | grep -A6 "première configuration"
+docker logs presse-agrumes --tail=50
 ```
 
-Le format des volumes reste `hôte:conteneur` : `/volume1/media` est le dossier
-réel sur le NAS, `/media` le chemin vu par l'application. Ici, la configuration
-est dans le volume nommé `presse-agrumes` au lieu de `./data`.
+Même règle `hôte:conteneur`. Ici la configuration vit dans le volume nommé
+`presse-agrumes` au lieu de `./data`.
 
 > **Nom court (optionnel)** : `docker pull cafesoluble/presse-agrumes` nécessite
 > un miroir Docker Hub. Docker Hub n'accepte que lettres minuscules et chiffres
@@ -521,7 +562,8 @@ lancement), `v0.5.0` (Docker multi-arch GHCR), `v0.6.0` (installation Docker en 
 commande, configuration auto-générée), `v0.7.0` (assistant de premier
 démarrage, racines Docker élargies), `v0.7.1` (port par défaut 8473),
 `v0.7.2` (installation Compose en 3 valeurs, Compose publié avec la release),
-`v0.7.3` (diagnostic permissions et choix du montage média).
+`v0.7.3` (diagnostic permissions et choix du montage média), `v0.8.0`
+(changement de mot de passe, annulation des analyses, guide Compose pas-à-pas).
 
 ## Dépannage
 

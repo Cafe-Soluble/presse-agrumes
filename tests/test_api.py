@@ -521,3 +521,38 @@ def test_setup_wizard_saves_media_root(client, media_root: Path, tmp_path: Path)
     assert state["media_root"] == str(media_root.resolve())
     assert state["media_root_exists"] is True
     assert any(root["path"] == str(config.ALLOWED_ROOTS[0].resolve()) for root in state["roots"])
+
+
+def test_change_password_endpoint(client, monkeypatch):
+    # L'authentification est désactivée dans les tests : on l'active le temps
+    # de vérifier la route, puis on restaure le fichier de configuration.
+    original = config.CONFIG_FILE.read_text(encoding="utf-8")
+    monkeypatch.setattr(config, "AUTH_ENABLED", True)
+    monkeypatch.setattr(config, "AUTH_USER", "agrumes")
+    monkeypatch.setattr(config, "AUTH_PASSWORD", "old-secret")
+    try:
+        bad = client.post(
+            "/api/auth/password",
+            json={"current_password": "mauvais", "new_password": "new-secret-123"},
+            auth=("agrumes", "old-secret"),
+        )
+        assert bad.status_code == 400
+
+        too_short = client.post(
+            "/api/auth/password",
+            json={"current_password": "old-secret", "new_password": "court"},
+            auth=("agrumes", "old-secret"),
+        )
+        assert too_short.status_code == 422
+
+        ok = client.post(
+            "/api/auth/password",
+            json={"current_password": "old-secret", "new_password": "new-secret-123"},
+            auth=("agrumes", "old-secret"),
+        )
+        assert ok.status_code == 200, ok.text
+        assert config.AUTH_PASSWORD == "new-secret-123"
+        assert 'password = "new-secret-123"' in config.CONFIG_FILE.read_text(encoding="utf-8")
+    finally:
+        config.CONFIG_FILE.write_text(original, encoding="utf-8")
+        config.apply_config_file(config.CONFIG_FILE)

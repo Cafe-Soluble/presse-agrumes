@@ -337,3 +337,19 @@
   chemins montés.
 - **Tests** : entrypoint simulé (succès et échec de permissions), pytest,
   typecheck, build, Playwright.
+
+## 2026-10-31 — v0.8.0 : mot de passe, annulation, assistant clarifié
+
+- **Changement de mot de passe** : `config.update_password` réécrit uniquement la
+  ligne `[auth] password` (commentaires conservés, mode 600), met à jour l'état
+  en mémoire, route `POST /api/auth/password`, dialogue avec bouton clé dans
+  l'en-tête. Le navigateur redemande les identifiants (Basic) après rechargement.
+- **Annulation des analyses** : bouton dans la bannière des jobs actifs pour les
+  scans/tests ; l'API et le panneau de progression existaient déjà.
+- **Assistant / explorateur** : plus de requête sur `/` (source du message
+  « Accès refusé à / ») ; les racines vides ne sont plus listées quand un média
+  est monté.
+- **README** : guide Compose façon pas-à-pas (étapes 1-4, tableau des 3 valeurs,
+  hôte/conteneur, mises à jour, dépannage).
+- **Tests** : `test_update_password_preserves_other_settings`,
+  `test_change_password_endpoint`, pytest 39, typecheck, build, Playwright.

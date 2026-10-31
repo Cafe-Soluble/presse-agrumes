@@ -1,10 +1,13 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Citrus, Cpu, History, MonitorPlay, Server, TriangleAlert } from "lucide-react";
+import { Citrus, Cpu, History, KeyRound, MonitorPlay, Server, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ActiveJobsBanner } from "@/components/active-jobs-banner";
+import { PasswordDialog } from "@/components/password-dialog";
 
 const navigation = [
   { to: "/", label: "Compression", icon: MonitorPlay, end: true },
@@ -13,6 +16,7 @@ const navigation = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const health = useQuery({
     queryKey: ["health"],
     queryFn: api.health,
@@ -60,6 +64,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </nav>
 
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            title="Changer le mot de passe"
+            aria-label="Changer le mot de passe"
+            onClick={() => setPasswordOpen(true)}
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
+
           <Badge
             variant={health.isError ? "destructive" : serverOk ? "success" : "warning"}
             className="hidden shrink-0 gap-1.5 md:inline-flex"
@@ -82,6 +98,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ActiveJobsBanner />
 
       <div className="relative z-10">{children}</div>
+
+      <PasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
 
       <footer className="relative z-10 mx-auto mt-16 flex max-w-[1440px] flex-col gap-2 border-t border-border/60 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <span>

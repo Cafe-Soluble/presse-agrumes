@@ -141,6 +141,13 @@ class SetupRequest(BaseModel):
     media_root: str = Field(min_length=1, max_length=4096)
 
 
+class PasswordChange(BaseModel):
+    """Changement de mot de passe depuis l'interface."""
+
+    current_password: str = Field(min_length=1, max_length=256)
+    new_password: str = Field(min_length=8, max_length=256, pattern=r"^[^\r\n]+$")
+
+
 class BenchmarkRequest(BaseModel):
     encoder: Literal["libsvtav1", "libaom-av1", "av1_vaapi"] = "libsvtav1"
     preset: int = Field(default=8, ge=0, le=13)

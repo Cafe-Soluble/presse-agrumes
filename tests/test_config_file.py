@@ -79,3 +79,42 @@ disabled = false
             config.apply_config_file(config_file)
     finally:
         config.apply_config_file(TEST_CONFIG)
+
+
+def test_update_password_preserves_other_settings(tmp_path: Path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text(
+        """
+# commentaire à conserver
+[server]
+host = "127.0.0.1"
+port = 9092
+
+[paths]
+data_dir = "./data-test"
+
+[auth]
+user = "agrumes"
+password = "ancien-secret"
+disabled = false
+
+[ffmpeg]
+ffmpeg = "/opt/ffmpeg"
+""",
+        encoding="utf-8",
+    )
+    config_file.chmod(0o600)
+    try:
+        config.apply_config_file(config_file)
+        config.update_password("nouveau-secret")
+        text = config_file.read_text(encoding="utf-8")
+        assert 'password = "nouveau-secret"' in text
+        assert 'password = "ancien-secret"' not in text
+        assert "port = 9092" in text
+        assert "[ffmpeg]" in text
+        assert "# commentaire à conserver" in text
+        assert config.AUTH_PASSWORD == "nouveau-secret"
+        assert config.AUTH_PASSWORD_IS_DEFAULT is False
+        assert (config_file.stat().st_mode & 0o777) == 0o600
+    finally:
+        config.apply_config_file(TEST_CONFIG)

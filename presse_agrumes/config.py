@@ -20,7 +20,9 @@ Structure du fichier (voir `config.toml` commenté à la racine) :
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -34,7 +36,7 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10
         tomllib = None  # type: ignore[assignment]
 
 APP_NAME = "Presse-Agrumes"
-VERSION = "0.7.3"
+VERSION = "0.8.0"
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_FILE = BASE_DIR / "config.toml"
@@ -175,6 +177,69 @@ def apply_config_file(path: str | Path) -> None:
     global CONFIG_FILE
     CONFIG_FILE = Path(path).expanduser().resolve()
     _apply_config_file()
+
+
+def update_password(new_password: str) -> None:
+    """Met à jour ``[auth] password`` dans CONFIG_FILE.
+
+    Réécrit uniquement la ligne du mot de passe pour conserver les commentaires
+    et les autres réglages. Les permissions d'origine sont conservées (600 par
+    défaut). Met aussi à jour l'état en mémoire, sans redémarrage.
+    """
+    global AUTH_PASSWORD, AUTH_PASSWORD_SOURCE, AUTH_PASSWORD_IS_DEFAULT
+
+    if not new_password or "\n" in new_password or "\r" in new_password:
+        raise ValueError("Mot de passe invalide.")
+
+    path = CONFIG_FILE
+    try:
+        text = path.read_text(encoding="utf-8")
+        mode = path.stat().st_mode & 0o777
+    except OSError as exc:
+        raise RuntimeError(f"Impossible de lire {path} : {exc}") from exc
+
+    lines = text.splitlines(keepends=True)
+    in_auth = False
+    auth_header_index: int | None = None
+    replaced = False
+    output: list[str] = []
+
+    password_re = re.compile(r"^(\s*)password\s*=\s*(?:\"[^\"]*\"|'[^']*')\s*$")
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_auth = stripped == "[auth]"
+            if in_auth and auth_header_index is None:
+                auth_header_index = len(output)
+        if in_auth and not replaced and password_re.match(line.rstrip("\n")):
+            indent = password_re.match(line.rstrip("\n")).group(1)  # type: ignore[union-attr]
+            output.append(f"{indent}password = {json.dumps(new_password, ensure_ascii=False)}\n")
+            replaced = True
+        else:
+            output.append(line)
+
+    if not replaced:
+        value = f'password = {json.dumps(new_password, ensure_ascii=False)}\n'
+        if auth_header_index is None:
+            output.append(f'\n[auth]\nuser = "{AUTH_USER}"\n{value}')
+        else:
+            output.insert(auth_header_index + 1, value)
+
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        tmp.write_text("".join(output), encoding="utf-8")
+        os.chmod(tmp, mode or 0o600)
+        os.replace(tmp, path)
+    except OSError as exc:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise RuntimeError(f"Impossible d'écrire {path} : {exc}") from exc
+
+    AUTH_PASSWORD = new_password
+    AUTH_PASSWORD_SOURCE = "config"
+    AUTH_PASSWORD_IS_DEFAULT = new_password.lower() in DEFAULT_PASSWORD_VALUES
 
 
 def ensure_dirs() -> None:

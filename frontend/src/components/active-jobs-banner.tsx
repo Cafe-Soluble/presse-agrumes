@@ -7,6 +7,7 @@ import {
   Pause,
   Play,
   ScanSearch,
+  Square,
   Timer,
   FlaskConical,
 } from "lucide-react";
@@ -57,6 +58,17 @@ export function ActiveJobsBanner() {
     },
     onError: (error: Error) =>
       toast({ title: "Reprise impossible", description: error.message, variant: "error" }),
+  });
+
+  const cancel = useMutation({
+    mutationFn: (jobId: string) => api.cancelJob(jobId),
+    onSuccess: (_data, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ["jobs", "active"] });
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+      toast({ title: "Job annulé", variant: "success" });
+    },
+    onError: (error: Error) =>
+      toast({ title: "Annulation impossible", description: error.message, variant: "error" }),
   });
 
   const jobs = active.data ?? [];
@@ -131,6 +143,22 @@ export function ActiveJobsBanner() {
                   >
                     {pause.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pause className="h-3.5 w-3.5" />}
                     Pause
+                  </Button>
+                )}
+                {(job.kind === "scan" || job.kind === "test") && !paused && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={cancel.isPending}
+                    onClick={() => cancel.mutate(job.id)}
+                  >
+                    {cancel.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Square className="h-3.5 w-3.5" />
+                    )}
+                    Annuler
                   </Button>
                 )}
                 {canResume && (
